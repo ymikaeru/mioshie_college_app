@@ -229,12 +229,34 @@ window.supabaseAuth = {
 // Auto-run on page load
 // ============================================================
 (function () {
+  let _heartbeatInterval = null;
+
+  async function updateLastSeen() {
+    if (!supabaseSession) return;
+    try {
+      await supabase.from('user_profiles').update({
+        last_seen_at: new Date().toISOString()
+      }).eq('id', supabaseSession.user.id);
+    } catch (e) { /* silent */ }
+  }
+
+  function startHeartbeat() {
+    if (_heartbeatInterval) return;
+    updateLastSeen();
+    _heartbeatInterval = setInterval(updateLastSeen, 5 * 60 * 1000); // every 5 minutes
+  }
+
+  function stopHeartbeat() {
+    if (_heartbeatInterval) { clearInterval(_heartbeatInterval); _heartbeatInterval = null; }
+  }
+
   const init = async () => {
     const authenticated = await checkSupabaseAuth();
     if (!authenticated && !checkAuth()) {
       showLoginOverlay();
     } else if (authenticated || checkAuth()) {
       injectLogoutButton();
+      startHeartbeat();
       if (authenticated && window._cloudSync) {
         try {
           await window._cloudSync.pullCloudToLocal();
@@ -246,6 +268,11 @@ window.supabaseAuth = {
       if (typeof revealPage === 'function') revealPage();
     }
   };
+
+  // Update last_seen when page becomes visible again
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && supabaseSession) updateLastSeen();
+  });
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

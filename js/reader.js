@@ -138,6 +138,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReader(volId, filename, articleJson, navJson, searchQuery, finalTopicTitle, hlScroll);
             _prefetchAdjacent(volId, navJson, filename);
 
+            // Log access for analytics (fire-and-forget)
+            if (window.supabaseAuth?.logAccess) {
+                window.supabaseAuth.logAccess(volId, filename).catch(() => {});
+            }
+
             // Show floating "continue reading" button instead of auto-scroll
             if (resolvedTopicIdx !== null && resolvedTopicIdx > 0 && !highlightId) {
                 setTimeout(() => {

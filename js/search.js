@@ -598,6 +598,22 @@ function logSearch(query, count) {
     if (log.length > 200) log.splice(0, log.length - 200);
     localStorage.setItem(key, JSON.stringify(log));
   } catch (e) { }
+
+  // Log to Supabase for cross-user analytics (fire-and-forget)
+  try {
+    const supabase = window.supabaseAuth?.supabase;
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          supabase.from('search_logs').insert({
+            user_id: session.user.id,
+            query: query.trim().toLowerCase().substring(0, 200),
+            results_count: count
+          }).then(() => {}).catch(() => {});
+        }
+      });
+    }
+  } catch (e) { }
 }
 
 function _updateFocusedItem(items) {

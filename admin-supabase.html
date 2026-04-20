@@ -151,6 +151,22 @@
     .search-tag { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; margin: 2px; background: var(--bg); border: 1px solid var(--border); }
     .search-tag.hot { background: rgba(184,134,11,0.1); border-color: var(--accent); color: var(--accent); }
 
+    /* Online users */
+    .online-card { padding: 18px; border-radius: 12px; border: 1px solid rgba(52,199,89,0.3); background: rgba(52,199,89,0.05); margin-bottom: 24px; }
+    .online-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .online-dot { width: 10px; height: 10px; border-radius: 50%; background: #34c759; animation: pulse-dot 2s ease infinite; flex-shrink: 0; }
+    @keyframes pulse-dot { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,199,89,0.4); } 50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(52,199,89,0); } }
+    .online-title { font-size: 0.85rem; font-weight: 600; color: #34c759; }
+    .online-count { font-size: 1.4rem; font-weight: 700; margin-left: auto; color: #34c759; }
+    .online-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .online-user { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; background: var(--bg); font-size: 0.8rem; }
+    .online-user-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .online-user-dot.active { background: #34c759; }
+    .online-user-dot.recent { background: #ffc107; }
+    .online-user-dot.idle { background: var(--text-muted); }
+    .online-user-name { font-weight: 500; }
+    .online-user-time { color: var(--text-muted); font-size: 0.7rem; }
+
     .user-detail-modal {
       display: none; position: fixed; inset: 0; z-index: 200;
       background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
@@ -313,6 +329,16 @@
               </select>
             </div>
 
+            <!-- Online Users -->
+            <div class="online-card" id="online-users-card">
+              <div class="online-header">
+                <div class="online-dot"></div>
+                <span class="online-title">Usuários Online / Recentes</span>
+                <span class="online-count" id="online-count">—</span>
+              </div>
+              <div class="online-list" id="online-list"><div class="loading">Verificando...</div></div>
+            </div>
+
             <!-- Overview -->
             <div class="admin-section">
               <h2>Visão Geral</h2>
@@ -404,6 +430,7 @@
                 <div id="role-distribution"><div class="loading">Carregando...</div></div>
               </div>
             </div>
+
           </div>
 
         </div>
@@ -896,13 +923,14 @@
       const days = getPeriodDays();
       const since = new Date(Date.now() - days * 86400000).toISOString();
 
+      loadOnlineUsers();
       loadOverviewStats(days, since);
       loadVolumePopularity(days, since);
-      loadSearchTrends();
+      loadSearchTrends(days, since);
       loadTopTeachings(days, since);
       loadHeatmap(days, since);
       loadCompletionRates(days, since);
-      loadRecentActivity(days);
+      loadRecentActivity(days, since);
       loadSyncStats();
       loadRoleDistribution();
       loadDailyActivityChart(days, since);
@@ -912,8 +940,58 @@
       loadRetentionRate(days, since);
     }
 
+    // ── Online Users ──────────────────────────────────────────
+    async function loadOnlineUsers() {
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, display_name, last_seen_at')
+        .not('last_seen_at', 'is', null)
+        .order('last_seen_at', { ascending: false });
+
+      const now = Date.now();
+      const active = []; // last 5 min
+      const recent = []; // 5-30 min
+      const idle = []; // 30-60 min
+
+      (profiles || []).forEach(p => {
+        if (!p.last_seen_at) return;
+        const diff = (now - new Date(p.last_seen_at).getTime()) / 60000; // minutes
+        if (diff <= 5) active.push({ ...p, minutesAgo: Math.round(diff) });
+        else if (diff <= 30) recent.push({ ...p, minutesAgo: Math.round(diff) });
+        else if (diff <= 60) idle.push({ ...p, minutesAgo: Math.round(diff) });
+      });
+
+      const total = active.length + recent.length;
+      document.getElementById('online-count').textContent = total;
+
+      const all = [
+        ...active.map(u => ({ ...u, status: 'active' })),
+        ...recent.map(u => ({ ...u, status: 'recent' })),
+        ...idle.map(u => ({ ...u, status: 'idle' }))
+      ];
+
+      if (all.length === 0) {
+        document.getElementById('online-list').innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted);">Nenhum usuário ativo recentemente.</span>';
+        return;
+      }
+
+      const statusLabels = { active: 'agora', recent: 'min atrás', idle: 'min atrás' };
+      document.getElementById('online-list').innerHTML = all.map(u => {
+        const timeLabel = u.status === 'active' ? 'agora' : `${u.minutesAgo} min`;
+        return `<div class="online-user">
+          <div class="online-user-dot ${u.status}"></div>
+          <span class="online-user-name">${u.display_name || 'Sem nome'}</span>
+          <span class="online-user-time">${timeLabel}</span>
+        </div>`;
+      }).join('');
+    }
+
     async function loadOverviewStats(days, since) {
-      document.getElementById('stat-total-users').textContent = allUsers.length;
+      // Count users independently (don't rely on allUsers from Users tab)
+      const { count: totalUserCount } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true });
+      document.getElementById('stat-total-users').textContent = totalUserCount || 0;
 
       const { data: activeUsers } = await supabase
         .from('access_logs')
@@ -974,20 +1052,37 @@
       }).join('');
     }
 
-    async function loadSearchTrends() {
-      let searches = [];
-      try {
-        searches = JSON.parse(localStorage.getItem('mioshie_search_log') || '[]');
-      } catch {}
+    async function loadSearchTrends(days, since) {
+      const { data } = await supabase
+        .from('search_logs')
+        .select('query')
+        .gte('created_at', since);
 
-      if (searches.length === 0) {
-        document.getElementById('search-trends').innerHTML = '<div class="loading">Sem buscas registradas.</div>';
+      if (!data || data.length === 0) {
+        // Fallback: try localStorage for backwards compatibility
+        let searches = [];
+        try { searches = JSON.parse(localStorage.getItem('mioshie_search_log') || '[]'); } catch {}
+        if (searches.length === 0) {
+          document.getElementById('search-trends').innerHTML = '<div class="loading">Sem buscas registradas.</div>';
+          return;
+        }
+        const counts = {};
+        searches.forEach(s => {
+          const q = (s.q || s.query || '').toLowerCase().trim();
+          if (q && q.length > 1) counts[q] = (counts[q] || 0) + 1;
+        });
+        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 30);
+        const maxCount = sorted.length > 0 ? sorted[0][1] : 1;
+        document.getElementById('search-trends').innerHTML = sorted.map(([query, count]) => {
+          const isHot = count >= maxCount * 0.5;
+          return `<span class="search-tag ${isHot ? 'hot' : ''}">${query} (${count})</span>`;
+        }).join('');
         return;
       }
 
       const counts = {};
-      searches.forEach(s => {
-        const q = s.query?.toLowerCase().trim();
+      data.forEach(s => {
+        const q = (s.query || '').toLowerCase().trim();
         if (q && q.length > 1) counts[q] = (counts[q] || 0) + 1;
       });
 
@@ -1090,12 +1185,14 @@
       }).join('');
     }
 
-    async function loadRecentActivity(days) {
-      const { data } = await supabase
+    async function loadRecentActivity(days, since) {
+      const query = supabase
         .from('access_logs')
         .select('user_id, volume, file, action, created_at')
         .order('created_at', { ascending: false })
         .limit(25);
+      if (since) query.gte('created_at', since);
+      const { data } = await query;
 
       if (!data || data.length === 0) {
         document.getElementById('recent-activity').innerHTML = '<div class="loading">Sem atividade.</div>';
@@ -1513,6 +1610,7 @@
           }).join('')}</tbody>
         </table>` : ''}`;
     }
+
 
     checkAdmin();
   </script>
