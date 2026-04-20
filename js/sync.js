@@ -336,15 +336,33 @@ export async function removeHighlight(volume, file, topicId, startChar, endChar)
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return;
 
-  await supabase
+  const { error } = await supabase
     .from('user_highlights')
     .delete()
     .eq('user_id', session.user.id)
     .eq('volume', volume)
     .eq('file', file)
     .eq('topic_id', topicId)
-    .eq('start_char', startChar)
-    .eq('end_char', endChar);
+    .eq('start_char', Number(startChar))
+    .eq('end_char', Number(endChar));
+
+  if (error) {
+    console.error('[sync] removeHighlight failed:', error.message, { volume, file, topicId, startChar, endChar });
+    // Fallback: try without type coercion
+    const { error: error2 } = await supabase
+      .from('user_highlights')
+      .delete()
+      .eq('user_id', session.user.id)
+      .eq('volume', volume)
+      .eq('file', file)
+      .eq('topic_id', topicId)
+      .eq('start_char', startChar)
+      .eq('end_char', endChar);
+    if (error2) {
+      console.error('[sync] removeHighlight fallback also failed:', error2.message);
+    }
+  }
+}
 }
 
 export async function loadAllHighlights() {

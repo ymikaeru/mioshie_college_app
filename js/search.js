@@ -292,6 +292,9 @@ function _syncSpmLang() {
 }
 
 document.addEventListener('DOMContentLoaded', function _initSearchPreviewModal() {
+  const isMobile = window.innerWidth <= 767;
+  const openPubLabel = (localStorage.getItem('site_lang') || 'pt') === 'ja' ? '関連する教え' : 'Ensinamentos Relacionados';
+
   const overlay = document.createElement('div');
   overlay.className = 'search-preview-overlay';
   overlay.id = 'searchPreviewModal';
@@ -306,66 +309,131 @@ document.addEventListener('DOMContentLoaded', function _initSearchPreviewModal()
           '<div class="search-preview-breadcrumb" id="searchPreviewBreadcrumb"></div>' +
           '<div class="search-preview-title" id="searchPreviewTitle"></div>' +
         '</div>' +
-        '<div class="search-preview-actions">' +
-          '<button class="btn-zen spm-btn" id="spmFavorite" title="Salvar">' +
-            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>' +
-          '</button>' +
-          '<button class="btn-zen spm-btn" id="spmFontDecrease" title="Diminuir fonte">A\u2212</button>' +
-          '<button class="btn-zen spm-btn" id="spmFontIncrease" title="Aumentar fonte">A+</button>' +
-          '<button class="btn-zen spm-btn" id="spmLang" title="Mudar idioma">\u65e5\u672c\u8a9e</button>' +
-          '<button class="btn-zen spm-btn" id="spmTheme" title="Themes & Settings">\u262f</button>' +
-        '</div>' +
+        '<button class="btn-zen spm-btn spm-open-pub" id="spmOpenPub" title="' + openPubLabel + '">' + openPubLabel + '</button>' +
         '<button class="modal-close-btn search-preview-close" onclick="closeSearchPreview()" aria-label="Fechar preview">\u00d7</button>' +
       '</div>' +
       '<div class="search-preview-body">' +
-        '<iframe id="searchPreviewIframe" title="Preview do ensinamento"></iframe>' +
+        '<div class="search-preview-card" id="searchPreviewCard">' +
+          '<div class="search-preview-card-content" id="searchPreviewCardContent"></div>' +
+        '</div>' +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
+
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) closeSearchPreview();
   });
 
-  document.getElementById('spmFavorite').addEventListener('click', () => {
-    _iframeCall('toggleFavorite');
-    setTimeout(_syncSpmFavorite, 150);
-  });
-  document.getElementById('spmFontDecrease').addEventListener('click', () => _iframeCall('changeFontSize', -1));
-  document.getElementById('spmFontIncrease').addEventListener('click', () => _iframeCall('changeFontSize', 1));
-  document.getElementById('spmLang').addEventListener('click', () => {
-    _iframeCall('toggleLanguage');
-    setTimeout(_syncSpmLang, 150);
-  });
-  document.getElementById('spmTheme').addEventListener('click', () => _iframeCall('toggleTheme'));
+  const openPubBtn = document.getElementById('spmOpenPub');
+  if (openPubBtn) {
+    openPubBtn.addEventListener('click', () => {
+      const iframe = document.getElementById('searchPreviewIframe');
+      const card = document.getElementById('searchPreviewCard');
+      const vol = iframe?.dataset.vol || card?.dataset.vol || '';
+      const file = iframe?.dataset.file || card?.dataset.file || '';
+      const lang = localStorage.getItem('site_lang') || 'pt';
+      window.location.href = `${getBasePath()}reader.html?vol=${vol}&file=${file}&topic=0${lang === 'ja' ? '&lang=ja' : ''}`;
+    });
+  }
 });
 
 window.openSearchPreview = function (vol, file, search, displayTitle, topicIdx, sectionLabel) {
   const overlay = document.getElementById('searchPreviewModal');
   const iframe = document.getElementById('searchPreviewIframe');
+  const card = document.getElementById('searchPreviewCard');
   const titleEl = document.getElementById('searchPreviewTitle');
   const breadcrumbEl = document.getElementById('searchPreviewBreadcrumb');
-  if (!overlay || !iframe) return;
+  const cardContentEl = document.getElementById('searchPreviewCardContent');
+  if (!overlay) return;
 
   const basePath = getBasePath();
   const lang = localStorage.getItem('site_lang') || 'pt';
-  let readerUrl = `${basePath}reader.html?vol=${encodeURIComponent(vol)}&file=${encodeURIComponent(file)}`;
-  if (search) readerUrl += `&search=${encodeURIComponent(search)}`;
-  if (topicIdx != null && topicIdx > 0) readerUrl += `&topic=${topicIdx}`;
-  if (lang === 'ja') readerUrl += `&lang=ja`;
+  const isMobile = window.innerWidth <= 767;
 
   if (titleEl) titleEl.textContent = displayTitle || '';
   if (breadcrumbEl) breadcrumbEl.textContent = sectionLabel || '';
 
-  iframe.dataset.vol = vol;
-  iframe.dataset.file = file;
-  // Set iframe src fresh each time (destroys previous load)
-  iframe.src = readerUrl;
-  iframe.onload = function () {
-    const ov = document.getElementById('searchPreviewModal');
-    if (!ov || !ov.classList.contains('active')) return;
-    _syncSpmFavorite();
-    _syncSpmLang();
+  if (card) { card.dataset.vol = vol; card.dataset.file = file; }
+
+  const renderCardContent = (contentHtml) => {
+    if (cardContentEl) cardContentEl.innerHTML = contentHtml;
   };
+
+  const _applyHighlight = (text) => {
+    if (!search || !search.trim()) return text;
+    const queryParts = search.trim().toLowerCase().split('&').map(p => p.trim()).filter(p => p.length >= 2);
+    if (queryParts.length === 0) return text;
+    const exactToggle = document.getElementById('searchExactToggle');
+    const useExactMatch = exactToggle ? exactToggle.checked : false;
+    const isJapanese = lang === 'ja';
+    const escapedParts = queryParts.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const highlightRegex = isJapanese
+      ? new RegExp(`(${escapedParts.join('|')})`, 'gi')
+      : (useExactMatch
+        ? new RegExp(`\\b(${escapedParts.join('|')})\\b`, 'gi')
+        : new RegExp(`\\b(${escapedParts.join('|')})`, 'gi'));
+    return text.replace(highlightRegex, '<mark class="search-highlight">$1</mark>');
+  };
+
+  function _renderFallback() {
+    let fallback = '';
+    if (typeof searchIndex !== 'undefined' && searchIndex) {
+      const items = searchIndex.filter(r => r.v === vol && r.f === file && (r.i == null ? 0 : r.i) === (topicIdx || 0));
+      if (items.length > 0) {
+        fallback = items.map(item => lang === 'ja' ? (item.cj || item.c || '') : (item.c || '')).join('\n\n');
+      }
+    }
+    if (fallback) {
+      let safeContent = String(fallback).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      safeContent = safeContent.split(/\n+/).filter(line => line.trim()).map(line => `<p>${line}</p>`).join('');
+      renderCardContent(_applyHighlight(safeContent));
+    } else {
+      renderCardContent('<p style="padding:2rem;text-align:center;color:var(--text-muted);">Conteúdo indisponível.</p>');
+    }
+  }
+
+  renderCardContent('<div style="padding:3rem;text-align:center;color:var(--text-muted);font-size:0.95rem;">Carregando o ensinamento completo...</div>');
+
+  if (window.supabaseStorageFetch) {
+    const fileNameStr = file.endsWith('.json') ? file : `${file}.json`;
+    window.supabaseStorageFetch(`${vol}/${fileNameStr}`).then(json => {
+      let topicsFound = [];
+      if (json && json.themes) {
+          json.themes.forEach(theme => {
+              if (theme.topics) theme.topics.forEach(topic => topicsFound.push(topic));
+          });
+      }
+      
+      let fullContent = '';
+      if (topicsFound.length > 0) {
+          const targetTopic = topicsFound[topicIdx || 0] || topicsFound[0];
+          if (targetTopic) {
+              fullContent = lang === 'ja' 
+                  ? (targetTopic.content_ja || targetTopic.content || '') 
+                  : (targetTopic.content_ptbr || targetTopic.content_pt || targetTopic.content || '');
+          }
+      }
+
+      if (fullContent) {
+        let safeContent = String(fullContent)
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/gi, ' ');
+          
+        safeContent = escHtml(safeContent);
+        safeContent = safeContent.split(/\n+/).filter(line => line.trim()).map(line => `<p>${line}</p>`).join('');
+        renderCardContent(_applyHighlight(safeContent));
+      } else {
+        _renderFallback();
+      }
+    }).catch(err => {
+       console.warn('Erro ao carregar do Storage para preview:', err);
+       _renderFallback();
+    });
+  } else {
+    _renderFallback();
+  }
 
   overlay.classList.add('active');
   _trapFocus(overlay);
@@ -374,11 +442,17 @@ window.openSearchPreview = function (vol, file, search, displayTitle, topicIdx, 
 window.closeSearchPreview = function () {
   const overlay = document.getElementById('searchPreviewModal');
   const iframe = document.getElementById('searchPreviewIframe');
+  const card = document.getElementById('searchPreviewCard');
   if (!overlay) return;
   overlay.classList.remove('active');
   _releaseFocus(overlay);
-  // Blank the iframe to stop any ongoing fetch/render
   if (iframe) setTimeout(() => { if (!overlay.classList.contains('active')) iframe.src = ''; }, 300);
+  if (card) {
+    const contentEl = document.getElementById('searchPreviewCardContent');
+    if (contentEl) contentEl.innerHTML = '';
+    delete card.dataset.vol;
+    delete card.dataset.file;
+  }
 };
 
 // --- Search DOM listeners ---
@@ -516,6 +590,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+let _supabaseLogTimer = null;
+
 function logSearch(query, count) {
   try {
     const key = 'mioshie_search_log';
@@ -524,6 +600,27 @@ function logSearch(query, count) {
     if (log.length > 200) log.splice(0, log.length - 200);
     localStorage.setItem(key, JSON.stringify(log));
   } catch (e) { }
+
+  // Log to Supabase with debounce — only logs the final settled query
+  clearTimeout(_supabaseLogTimer);
+  const trimmed = query.trim().toLowerCase();
+  if (trimmed.length < 3) return; // ignore very short partial queries
+  _supabaseLogTimer = setTimeout(() => {
+    try {
+      const supabase = window.supabaseAuth?.supabase;
+      if (supabase) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+            supabase.from('search_logs').insert({
+              user_id: session.user.id,
+              query: trimmed.substring(0, 200),
+              results_count: count
+            }).then(() => {}).catch(() => {});
+          }
+        });
+      }
+    } catch (e) { }
+  }, 2000);
 }
 
 function _updateFocusedItem(items) {
@@ -745,22 +842,24 @@ function _renderResultItem(r, basePath, highlightRegex, q, activeLang) {
   const displayTitle = (activeLang === 'ja' && r.tj) ? r.tj : (r.t || '');
   const topicIdx = r.i != null ? r.i : 0;
 
-  const pubTitles = window.GLOBAL_INDEX_TITLES ? window.GLOBAL_INDEX_TITLES[r.v] : null;
-  const pubTitle = pubTitles ? pubTitles[r.f] : '';
-  let sectLabel = '';
-  if (pubTitle && activeLang !== 'ja') {
-    sectLabel = pubTitle;
-  } else {
-    const volMap = window.SECTION_MAP ? window.SECTION_MAP[r.v] : null;
-    const sectObj = volMap ? volMap[r.f] : null;
-    sectLabel = sectObj ? (activeLang === 'ja' ? sectObj.ja : sectObj.pt) : '';
+  // Prioritize SECTION_MAP (has correct section names like "O Método do Johrei　１")
+  // over GLOBAL_INDEX_TITLES (which may store per-file topic titles)
+  const volMap = window.SECTION_MAP ? window.SECTION_MAP[r.v] : null;
+  const sectObj = volMap ? volMap[r.f] : null;
+  let sectLabel = sectObj ? (activeLang === 'ja' ? (sectObj.ja || sectObj.pt) : sectObj.pt) : '';
+  if (!sectLabel) {
+    const pubTitles = window.GLOBAL_INDEX_TITLES ? window.GLOBAL_INDEX_TITLES[r.v] : null;
+    sectLabel = pubTitles ? (pubTitles[r.f] || '') : '';
   }
   const volNum = r.v.slice(-1);
   const isDifferent = sectLabel && _norm(sectLabel) !== _norm(displayTitle);
+  
+  const homeLabel = activeLang === 'ja' ? 'トップ' : 'Início';
+  const volLabel = activeLang === 'ja' ? `第${volNum}巻` : `Volume ${volNum}`;
   const sectionHtml = isDifferent
-    ? `<div style="font-size:0.8rem; color:var(--text-muted); font-weight:500; margin-bottom: 4px; opacity: 0.85;">${escHtml(sectLabel)} <span style="color:var(--text-muted)">(Vol ${volNum})</span></div>`
+    ? `<div style="font-size:0.8rem; color:var(--text-muted); font-weight:500; margin-bottom: 4px; opacity: 0.85;">${homeLabel} <span>/</span> ${volLabel} <span>/</span> ${escHtml(sectLabel)}</div>`
     : '';
-  const breadcrumbLabel = isDifferent ? `${sectLabel} · Vol ${volNum}` : `Vol ${volNum}`;
+  const breadcrumbLabel = isDifferent ? `${homeLabel} / ${volLabel} / ${sectLabel}` : `${homeLabel} / ${volLabel}`;
 
   const highlight = (r.snippet || '')
     .replace(highlightRegex, '<mark class="search-highlight">$1</mark>');
