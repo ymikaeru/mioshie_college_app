@@ -2,12 +2,12 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Admin — Gerenciar Usuários — Mioshie College</title>
+  <title>Admin — Mioshie College</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/styles.min.css?v=17">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <style>
-    .admin-wrap { max-width: 960px; margin: 0 auto; padding: 40px 24px 120px; }
+    .admin-wrap { max-width: 1000px; margin: 0 auto; padding: 40px 24px 120px; }
     .admin-section { margin-bottom: 40px; }
     .admin-section h2 { font-size: 1rem; font-weight: 600; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 20px; }
 
@@ -23,13 +23,13 @@
     .tab-content.active { display: block; }
 
     /* Stats cards */
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
     .stat-card {
-      padding: 20px; border-radius: 12px; border: 1px solid var(--border);
+      padding: 18px; border-radius: 12px; border: 1px solid var(--border);
       background: var(--surface); text-align: center;
     }
-    .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
-    .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
 
     /* Tables */
     .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -38,6 +38,11 @@
     .data-table tr:hover td { background: var(--hover, rgba(255,255,255,0.04)); }
 
     /* User list */
+    .user-search { margin-bottom: 16px; }
+    .user-search input {
+      width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 0.9rem; box-sizing: border-box;
+    }
     .user-list { display: flex; flex-direction: column; gap: 8px; }
     .user-row {
       display: flex; align-items: center; gap: 12px; padding: 14px 18px;
@@ -54,6 +59,7 @@
     .user-info { flex: 1; min-width: 0; }
     .user-name { font-weight: 600; font-size: 0.95rem; }
     .user-email { font-size: 0.8rem; color: var(--text-muted); }
+    .user-meta { font-size: 0.7rem; color: var(--text-muted); }
     .user-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 600; text-transform: uppercase; }
     .user-badge.admin { background: rgba(184,134,11,0.15); color: var(--accent); }
     .user-badge.user { background: rgba(0,0,0,0.06); color: var(--text-muted); }
@@ -91,7 +97,7 @@
     .save-bar .status.saved { color: #34c759; }
 
     .add-user-form { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 20px; }
-    .add-user-form .form-group { flex: 1; min-width: 180px; }
+    .add-user-form .form-group { flex: 1; min-width: 160px; }
     .add-user-form label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-muted); margin-bottom: 4px; }
     .add-user-form input {
       width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border);
@@ -120,6 +126,53 @@
       padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
       background: var(--bg); color: var(--text); font-size: 0.8rem;
     }
+
+    .reset-btn {
+      background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.75rem;
+      padding: 2px 6px; border-radius: 4px; margin-left: 6px;
+    }
+    .reset-btn:hover { background: rgba(184,134,11,0.1); }
+
+    /* Analytics extras */
+    .chart-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .chart-bar-label { width: 120px; font-size: 0.8rem; color: var(--text-muted); text-align: right; flex-shrink: 0; }
+    .chart-bar-track { flex: 1; height: 22px; background: var(--bg); border-radius: 6px; overflow: hidden; }
+    .chart-bar-fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width 0.5s; min-width: 2px; }
+    .chart-bar-value { font-size: 0.8rem; font-weight: 600; width: 40px; text-align: right; flex-shrink: 0; }
+
+    .heatmap { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; margin-top: 12px; }
+    .heatmap-cell { aspect-ratio: 1; border-radius: 3px; background: var(--bg); position: relative; }
+    .heatmap-cell[data-level="1"] { background: rgba(184,134,11,0.2); }
+    .heatmap-cell[data-level="2"] { background: rgba(184,134,11,0.4); }
+    .heatmap-cell[data-level="3"] { background: rgba(184,134,11,0.6); }
+    .heatmap-cell[data-level="4"] { background: rgba(184,134,11,0.85); }
+    .heatmap-labels { display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; }
+
+    .search-tag { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; margin: 2px; background: var(--bg); border: 1px solid var(--border); }
+    .search-tag.hot { background: rgba(184,134,11,0.1); border-color: var(--accent); color: var(--accent); }
+
+    .user-detail-modal {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
+    }
+    .user-detail-modal.open { display: flex; }
+    .user-detail-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;
+    }
+    .user-detail-card h3 { margin-bottom: 20px; }
+    .user-detail-close {
+      float: right; background: none; border: none; font-size: 1.2rem; cursor: pointer;
+      color: var(--text-muted); padding: 4px 8px;
+    }
+
+    .period-select {
+      padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 0.8rem; margin-left: auto;
+    }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -178,7 +231,10 @@
 
           <!-- User List -->
           <div class="admin-section">
-            <h2>Usuários</h2>
+            <h2>Usuários <span id="user-count" style="font-weight:400; color:var(--text-muted); font-size:0.85rem;"></span></h2>
+            <div class="user-search">
+              <input type="text" id="user-search" placeholder="Buscar por nome ou email..." oninput="filterUsers()">
+            </div>
             <div id="user-list-container">
               <div class="loading">Carregando usuários...</div>
             </div>
@@ -197,32 +253,78 @@
 
           </div><!-- /tab-users -->
 
-
           <!-- Analytics Tab -->
           <div class="tab-content" id="tab-analytics">
+            <div style="display:flex; align-items:center; margin-bottom:24px;">
+              <h2 style="margin:0;">Analytics</h2>
+              <select class="period-select" id="analytics-period" onchange="loadAnalytics()">
+                <option value="7">Últimos 7 dias</option>
+                <option value="30" selected>Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="365">Último ano</option>
+              </select>
+            </div>
+
+            <!-- Overview -->
             <div class="admin-section">
               <h2>Visão Geral</h2>
               <div class="stats-grid" id="stats-cards">
-                <div class="stat-card"><div class="stat-value" id="stat-total-users">—</div><div class="stat-label">Usuários</div></div>
-                <div class="stat-card"><div class="stat-value" id="stat-active-users">—</div><div class="stat-label">Ativos (7 dias)</div></div>
-                <div class="stat-card"><div class="stat-value" id="stat-total-views">—</div><div class="stat-label">Visualizações (30 dias)</div></div>
-                <div class="stat-card"><div class="stat-value" id="stat-teachings-read">—</div><div class="stat-label">Ensinamentos Lidos</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-users">—</div><div class="stat-label">Total Usuários</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-active-users">—</div><div class="stat-label">Ativos (período)</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-new-users">—</div><div class="stat-label">Novos (período)</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-total-views">—</div><div class="stat-label">Visualizações</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-teachings-read">—</div><div class="stat-label">Ensinamentos Únicos</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-avg-session">—</div><div class="stat-label">Média/User</div></div>
               </div>
             </div>
 
+            <!-- Volume Popularity -->
+            <div class="two-col">
+              <div class="admin-section">
+                <h2>Popularidade por Volume</h2>
+                <div id="volume-chart"><div class="loading">Carregando...</div></div>
+              </div>
+              <div class="admin-section">
+                <h2>Buscas Mais Frequentes</h2>
+                <div id="search-trends"><div class="loading">Carregando...</div></div>
+              </div>
+            </div>
+
+            <!-- Top Teachings -->
             <div class="admin-section">
-              <h2>Ensinamentos Mais Lidos (30 dias)</h2>
+              <h2>Ensinamentos Mais Lidos</h2>
               <div id="top-teachings"><div class="loading">Carregando...</div></div>
             </div>
 
+            <!-- Two col: Heatmap + Completion -->
+            <div class="two-col">
+              <div class="admin-section">
+                <h2>Atividade por Hora do Dia</h2>
+                <div id="heatmap-chart"><div class="loading">Carregando...</div></div>
+                <div class="heatmap-labels"><span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span></div>
+              </div>
+              <div class="admin-section">
+                <h2>Taxa de Conclusão por Volume</h2>
+                <div id="completion-chart"><div class="loading">Carregando...</div></div>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
             <div class="admin-section">
               <h2>Atividade Recente</h2>
               <div id="recent-activity"><div class="loading">Carregando...</div></div>
             </div>
 
-            <div class="admin-section">
-              <h2>Posições de Leitura Salvas</h2>
-              <div id="reading-stats"><div class="loading">Carregando...</div></div>
+            <!-- Storage & Sync Stats -->
+            <div class="two-col">
+              <div class="admin-section">
+                <h2>Dados Sincronizados</h2>
+                <div id="sync-stats"><div class="loading">Carregando...</div></div>
+              </div>
+              <div class="admin-section">
+                <h2>Distribuição por Perfil</h2>
+                <div id="role-distribution"><div class="loading">Carregando...</div></div>
+              </div>
             </div>
           </div>
 
@@ -230,6 +332,15 @@
       </div>
     </div>
   </main>
+
+  <!-- User Detail Modal -->
+  <div class="user-detail-modal" id="user-detail-modal" onclick="if(event.target===this)closeUserDetail()">
+    <div class="user-detail-card">
+      <button class="user-detail-close" onclick="closeUserDetail()">✕</button>
+      <h3 id="modal-user-name"></h3>
+      <div id="modal-user-content"></div>
+    </div>
+  </div>
 
   <div class="save-bar">
     <span class="status" id="save-status"></span>
@@ -254,20 +365,21 @@
       { key: 'mioshiec4', name: 'Volume 4 — Ensinamentos Complementares' }
     ];
 
+    const VOL_SHORT = { mioshiec1: 'V1', mioshiec2: 'V2', mioshiec3: 'V3', mioshiec4: 'V4' };
+
     let allUsers = [];
     let selectedUserId = null;
-    let volumeFiles = {};
+    let volumeCategories = {};
 
     window.switchTab = function(tab) {
       document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      const tabIndex = { 'users': 1, 'analytics': 2 }[tab] || 1;
-      document.querySelector(`.admin-tab:nth-child(${tabIndex})`).classList.add('active');
+      const tabIndex = { 'users': 0, 'analytics': 1 }[tab];
+      document.querySelectorAll('.admin-tab')[tabIndex].classList.add('active');
       document.getElementById(`tab-${tab}`).classList.add('active');
       if (tab === 'analytics') loadAnalytics();
     };
 
-    // Check admin
     async function checkAdmin() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
@@ -288,15 +400,13 @@
       loadVolumeFiles();
     }
 
-    let volumeCategories = {}; // { volKey: { sectionName: [ {file, title} ] } }
+    // ── Volume files for permission editor ────────────────────────
 
     async function loadVolumeFiles() {
-      // Load section_map from storage
       try {
         const { data: mapData } = await supabase.storage.from('teachings').download('section_map.js');
         if (mapData) {
           const text = await mapData.text();
-          // Extract the JSON from window.SECTION_MAP = {...};
           const jsonStr = text.match(/window\.SECTION_MAP\s*=\s*(\{.*?\})\s*;?\s*$/s)?.[1];
           if (jsonStr) {
             const sectionMap = JSON.parse(jsonStr);
@@ -316,13 +426,12 @@
         console.warn('Failed to load section_map:', e);
       }
 
-      // Fallback: if section_map failed, use raw file list
       for (const vol of VOLUMES) {
         if (!volumeCategories[vol.key]) {
           try {
             const { data } = await supabase.storage.from('teachings').list(`${vol.key}/`);
             volumeCategories[vol.key] = {
-              'Todos os arquivos': (data || []).map(f => ({ file: f.name, title: f.name.replace('.html.json', '') }))
+              'Todos': (data || []).map(f => ({ file: f.name, title: f.name.replace('.html.json', '') }))
             };
           } catch {
             volumeCategories[vol.key] = {};
@@ -331,11 +440,13 @@
       }
     }
 
+    // ── User list with email ──────────────────────────────────────
+
     window.loadUsers = async function() {
       const container = document.getElementById('user-list-container');
       container.innerHTML = '<div class="loading">Carregando usuários...</div>';
 
-      const { data: users, error } = await supabase
+      const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select('id, display_name, role, created_at')
         .order('created_at', { ascending: false });
@@ -345,23 +456,33 @@
         return;
       }
 
-      allUsers = users || [];
+      allUsers = (profiles || []).map(p => ({ ...p, email: '' }));
+      document.getElementById('user-count').textContent = `(${allUsers.length})`;
       renderUserList();
     };
 
     function renderUserList() {
       const container = document.getElementById('user-list-container');
-      if (allUsers.length === 0) {
+      const query = (document.getElementById('user-search')?.value || '').toLowerCase();
+      const filtered = allUsers.filter(u =>
+        (u.display_name || '').toLowerCase().includes(query) ||
+        (u.email || '').toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
         container.innerHTML = '<div class="loading">Nenhum usuário encontrado.</div>';
         return;
       }
 
-      container.innerHTML = '<div class="user-list">' + allUsers.map(u => `
+      container.innerHTML = '<div class="user-list">' + filtered.map(u => `
         <div class="user-row ${u.id === selectedUserId ? 'active' : ''}" onclick="selectUser('${u.id}')">
           <div class="user-avatar">${(u.display_name || 'U')[0].toUpperCase()}</div>
           <div class="user-info">
-            <div class="user-name">${u.display_name || 'Sem nome'}</div>
-            <div class="user-email">${u.email || ''}</div>
+            <div class="user-name">${u.display_name || 'Sem nome'}
+              <button class="reset-btn" onclick="event.stopPropagation(); resetPassword('${u.id}', '${u.email || u.display_name}')" title="Resetar senha">🔑 reset</button>
+            </div>
+            <div class="user-email">${u.email || '—'}</div>
+            <div class="user-meta">Criado em ${new Date(u.created_at).toLocaleDateString('pt-BR')}</div>
           </div>
           <span class="user-badge ${u.role}">${u.role}</span>
           <select class="role-select" onclick="event.stopPropagation()" onchange="changeRole('${u.id}', this.value)">
@@ -372,6 +493,93 @@
         </div>
       `).join('') + '</div>';
     }
+
+    window.filterUsers = function() { renderUserList(); };
+
+    // ── User detail modal ─────────────────────────────────────────
+
+    window.openUserDetail = async function(userId) {
+      const user = allUsers.find(u => u.id === userId);
+      if (!user) return;
+
+      document.getElementById('modal-user-name').textContent = user.display_name || 'Usuário';
+
+      const { data: logs } = await supabase
+        .from('access_logs')
+        .select('volume, file, action, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      const { data: positions } = await supabase
+        .from('reading_positions')
+        .select('volume, file, progress_pct, updated_at')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(20);
+
+      const { data: favs } = await supabase
+        .from('synced_favorites')
+        .select('volume, file, topic_title, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const { data: highlights } = await supabase
+        .from('user_highlights')
+        .select('volume, file, text, color, updated_at')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false })
+        .limit(20);
+
+      const { data: perms } = await supabase
+        .from('user_permissions')
+        .select('volume, files')
+        .eq('user_id', userId);
+
+      const totalViews = (logs || []).length;
+      const uniqueTeachings = new Set((logs || []).map(l => `${l.volume}/${l.file}`)).size;
+
+      let html = `
+        <div class="stats-grid" style="margin-bottom:24px;">
+          <div class="stat-card"><div class="stat-value">${totalViews}</div><div class="stat-label">Visualizações</div></div>
+          <div class="stat-card"><div class="stat-value">${uniqueTeachings}</div><div class="stat-label">Ensinamentos</div></div>
+          <div class="stat-card"><div class="stat-value">${(favs || []).length}</div><div class="stat-label">Favoritos</div></div>
+          <div class="stat-card"><div class="stat-value">${(highlights || []).length}</div><div class="stat-label">Destaques</div></div>
+        </div>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
+          <strong>Permissões:</strong> ${(perms || []).map(p => `${VOL_SHORT[p.volume] || p.volume}: ${p.files === null ? 'todos' : p.files.length + ' arquivos'}`).join(', ') || 'Nenhuma'}
+        </p>
+      `;
+
+      if (positions && positions.length > 0) {
+        html += `<h4 style="margin:16px 0 8px; font-size:0.85rem;">Progresso de Leitura</h4>`;
+        html += `<table class="data-table"><thead><tr><th>Volume</th><th>Arquivo</th><th>Progresso</th></tr></thead><tbody>`;
+        positions.forEach(p => {
+          html += `<tr><td>${VOL_SHORT[p.volume] || p.volume}</td><td style="font-family:monospace; font-size:0.8rem;">${p.file.replace('.html.json','')}</td><td>${p.progress_pct}%</td></tr>`;
+        });
+        html += `</tbody></table>`;
+      }
+
+      if (logs && logs.length > 0) {
+        html += `<h4 style="margin:16px 0 8px; font-size:0.85rem;">Atividade Recente</h4>`;
+        html += `<table class="data-table"><thead><tr><th>Ação</th><th>Volume</th><th>Data</th></tr></thead><tbody>`;
+        logs.slice(0, 15).forEach(l => {
+          const d = new Date(l.created_at).toLocaleDateString('pt-BR');
+          html += `<tr><td>${l.action}</td><td>${VOL_SHORT[l.volume] || l.volume}</td><td style="font-size:0.8rem; color:var(--text-muted);">${d}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+      }
+
+      document.getElementById('modal-user-content').innerHTML = html;
+      document.getElementById('user-detail-modal').classList.add('open');
+    };
+
+    window.closeUserDetail = function() {
+      document.getElementById('user-detail-modal').classList.remove('open');
+    };
+
+    // ── Select user & permission editor ───────────────────────────
 
     window.selectUser = async function(userId) {
       selectedUserId = userId;
@@ -396,14 +604,14 @@
       volumesDiv.innerHTML = VOLUMES.map(vol => {
         const hasAccess = permMap[vol.key] !== undefined;
         const isAll = permMap[vol.key] === 'all';
-        const selectedFiles = permMap[vol.key] === 'all' ? [] : new Set(permMap[vol.key] || []);
+        const selectedFiles = isAll ? new Set() : new Set(permMap[vol.key] || []);
         const categories = volumeCategories[vol.key] || {};
 
         const totalFiles = Object.values(categories).reduce((sum, files) => sum + files.length, 0);
         const selectedCount = isAll ? totalFiles : Object.values(categories).reduce((sum, files) => sum + files.filter(f => selectedFiles.has(f.file)).length, 0);
 
         return `
-          <div class="vol-block">
+          <div class="vol-block" data-vol="${vol.key}">
             <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')">
               <input type="checkbox" ${hasAccess ? 'checked' : ''} onchange="toggleVolume('${vol.key}', this.checked)">
               <span class="vol-title">${vol.name}</span>
@@ -422,12 +630,12 @@
                 return `
                   <div class="vol-block" style="margin-bottom:8px;">
                     <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')" style="padding:8px 12px;">
-                      <input type="checkbox" ${sectionAll ? 'checked' : ''} ${sectionSome && !sectionAll ? 'style="opacity:0.5"' : ''} onchange="toggleSection('${vol.key}', '${sectionName.replace(/'/g, "\\'")}', this.checked)">
+                      <input type="checkbox" ${sectionAll ? 'checked' : ''} ${sectionSome && !sectionAll ? 'style="opacity:0.5"' : ''} onchange="toggleSection('${vol.key}', this.checked, this)">
                       <span class="vol-title" style="font-size:0.85rem;">${sectionName}</span>
                       <span style="font-size:0.7rem; color:var(--text-muted);">${files.length} itens</span>
                     </div>
                     <div class="vol-body" style="padding:8px 12px;">
-                      <div class="file-list">
+                      <div class="file-list" id="files-${vol.key}">
                         ${files.map(f => `
                           <div class="file-item">
                             <input type="checkbox" id="file-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" ${selectedFiles.has(f.file) ? 'checked' : ''}>
@@ -447,32 +655,28 @@
       editor.classList.add('open');
     };
 
-    window.toggleSection = function(vol, section, checked) {
-      const sectionBlock = Array.from(document.querySelectorAll('.vol-block')).find(block => {
-        const header = block.querySelector('.vol-header');
-        return header && header.textContent.includes(section);
-      });
-      if (!sectionBlock) return;
-      sectionBlock.querySelectorAll('.file-item input[type=checkbox]').forEach(cb => {
-        cb.checked = checked;
-      });
-    };
-
     window.toggleVolume = function(vol, enabled) {
-      const body = document.querySelector(`#files-${vol}`)?.closest('.vol-body');
-      if (!body) return;
+      const volBlock = document.querySelector(`.vol-block[data-vol="${vol}"]`);
+      if (!volBlock) return;
+      const body = volBlock.querySelector('.vol-body');
       body.querySelectorAll('input[type=checkbox]').forEach(cb => {
-        cb.disabled = !enabled;
+        cb.checked = enabled;
+        cb.disabled = false;
       });
     };
 
     window.toggleAllFiles = function(vol, all) {
-      const container = document.getElementById(`files-${vol}`);
-      if (!container) return;
-      container.querySelectorAll('input[type=checkbox]').forEach(cb => {
-        cb.checked = all;
-        cb.disabled = all;
-      });
+      const volBlock = document.querySelector(`.vol-block[data-vol="${vol}"]`);
+      if (!volBlock) return;
+      const fileCheckboxes = volBlock.querySelectorAll('.file-list input[type=checkbox]');
+      fileCheckboxes.forEach(cb => { cb.checked = all; });
+    };
+
+    window.toggleSection = function(vol, checked, headerCheckbox) {
+      const volBlock = headerCheckbox.closest('.vol-block');
+      if (!volBlock) return;
+      const fileCheckboxes = volBlock.querySelectorAll('.file-list input[type=checkbox]');
+      fileCheckboxes.forEach(cb => { cb.checked = checked; });
     };
 
     window.savePermissions = async function() {
@@ -485,21 +689,20 @@
       await supabase.from('user_permissions').delete().eq('user_id', selectedUserId);
 
       const perms = [];
-      VOLUMES.forEach(vol => {
-        const volBlock = document.getElementById('perm-volumes')?.querySelector('.vol-block');
-        if (!volBlock) return;
-
-        const volCheckbox = volBlock.querySelector('.vol-header input[type=checkbox]');
+      const volBlocks = document.querySelectorAll('#perm-volumes > .vol-block');
+      volBlocks.forEach(volBlock => {
+        const volKey = volBlock.dataset.vol;
+        const volCheckbox = volBlock.querySelector(':scope > .vol-header input[type=checkbox]');
         if (!volCheckbox?.checked) return;
 
-        const allCheckbox = volBlock.querySelector('.vol-body > div:first-child input[type=checkbox]');
+        const allCheckbox = volBlock.querySelector(':scope > .vol-body > div:first-child input[type=checkbox]');
         if (allCheckbox?.checked) {
-          perms.push({ user_id: selectedUserId, volume: vol.key, files: null });
+          perms.push({ user_id: selectedUserId, volume: volKey, files: null });
         } else {
-          const fileCheckboxes = volBlock.querySelectorAll('.file-item input[type=checkbox]:checked');
+          const fileCheckboxes = volBlock.querySelectorAll('.file-list input[type=checkbox]:checked');
           const files = Array.from(fileCheckboxes).map(cb => cb.value);
           if (files.length > 0) {
-            perms.push({ user_id: selectedUserId, volume: vol.key, files });
+            perms.push({ user_id: selectedUserId, volume: volKey, files });
           }
         }
       });
@@ -541,6 +744,20 @@
       loadUsers();
     };
 
+    window.resetPassword = async function(userId, email) {
+      const newPass = prompt(`Nova senha para ${email || userId}:`, '');
+      if (!newPass || newPass.length < 6) {
+        if (newPass) alert('A senha deve ter pelo menos 6 caracteres.');
+        return;
+      }
+      const { error } = await supabase.auth.admin.updateUserById(userId, { password: newPass });
+      if (error) {
+        alert('Erro ao resetar senha: ' + error.message);
+      } else {
+        alert('Senha resetada com sucesso!');
+      }
+    };
+
     window.addUser = async function() {
       const name = document.getElementById('new-name').value.trim();
       const email = document.getElementById('new-email').value.trim().toLowerCase();
@@ -565,7 +782,7 @@
       msg.style.display = 'none';
 
       try {
-        const { error, data } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -573,10 +790,7 @@
           }
         });
 
-        if (error) {
-            console.error("SignUp error:", error);
-            throw error;
-        }
+        if (error) throw error;
 
         msg.textContent = 'Usuário criado com sucesso!';
         msg.className = 'msg ok';
@@ -592,55 +806,125 @@
       btn.disabled = false;
     };
 
-
-
     // ============================================================
     // Analytics
     // ============================================================
 
-    async function loadAnalytics() {
-      loadOverviewStats();
-      loadTopTeachings();
-      loadRecentActivity();
-      loadReadingStats();
+    function getPeriodDays() {
+      return parseInt(document.getElementById('analytics-period')?.value || '30');
     }
 
-    async function loadOverviewStats() {
-      // Total users
+    async function loadAnalytics() {
+      const days = getPeriodDays();
+      const since = new Date(Date.now() - days * 86400000).toISOString();
+
+      loadOverviewStats(days, since);
+      loadVolumePopularity(days, since);
+      loadSearchTrends();
+      loadTopTeachings(days, since);
+      loadHeatmap(days, since);
+      loadCompletionRates(days, since);
+      loadRecentActivity(days);
+      loadSyncStats();
+      loadRoleDistribution();
+    }
+
+    async function loadOverviewStats(days, since) {
       document.getElementById('stat-total-users').textContent = allUsers.length;
 
-      // Active users (7 days)
       const { data: activeUsers } = await supabase
         .from('access_logs')
         .select('user_id')
-        .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString());
+        .gte('created_at', since);
       const uniqueActive = new Set((activeUsers || []).map(u => u.user_id));
       document.getElementById('stat-active-users').textContent = uniqueActive.size;
 
-      // Total views (30 days)
+      const { count: newUsers } = await supabase
+        .from('user_profiles')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', since);
+      document.getElementById('stat-new-users').textContent = newUsers || 0;
+
       const { count: totalViews } = await supabase
         .from('access_logs')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
+        .gte('created_at', since);
       document.getElementById('stat-total-views').textContent = totalViews || 0;
 
-      // Unique teachings read (30 days)
-      const { data: views30 } = await supabase
+      const { data: viewsData } = await supabase
         .from('access_logs')
         .select('volume, file')
-        .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
-      const uniqueTeachings = new Set((views30 || []).map(v => `${v.volume}/${v.file}`));
+        .gte('created_at', since);
+      const uniqueTeachings = new Set((viewsData || []).map(v => `${v.volume}/${v.file}`));
       document.getElementById('stat-teachings-read').textContent = uniqueTeachings.size;
+
+      const avg = uniqueActive.size > 0 ? Math.round((totalViews || 0) / uniqueActive.size * 10) / 10 : 0;
+      document.getElementById('stat-avg-session').textContent = avg;
     }
 
-    async function loadTopTeachings() {
+    async function loadVolumePopularity(days, since) {
+      const { data } = await supabase
+        .from('access_logs')
+        .select('volume')
+        .gte('created_at', since);
+
+      if (!data || data.length === 0) {
+        document.getElementById('volume-chart').innerHTML = '<div class="loading">Sem dados.</div>';
+        return;
+      }
+
+      const counts = {};
+      VOLUMES.forEach(v => counts[v.key] = 0);
+      data.forEach(d => { if (counts[d.volume] !== undefined) counts[d.volume]++; });
+      const max = Math.max(...Object.values(counts), 1);
+
+      document.getElementById('volume-chart').innerHTML = VOLUMES.map(vol => {
+        const count = counts[vol.key];
+        const pct = Math.round(count / max * 100);
+        const shortName = vol.name.split('—')[0].trim();
+        return `
+          <div class="chart-bar">
+            <div class="chart-bar-label">${shortName}</div>
+            <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
+            <div class="chart-bar-value">${count}</div>
+          </div>`;
+      }).join('');
+    }
+
+    async function loadSearchTrends() {
+      let searches = [];
+      try {
+        searches = JSON.parse(localStorage.getItem('mioshie_search_log') || '[]');
+      } catch {}
+
+      if (searches.length === 0) {
+        document.getElementById('search-trends').innerHTML = '<div class="loading">Sem buscas registradas.</div>';
+        return;
+      }
+
+      const counts = {};
+      searches.forEach(s => {
+        const q = s.query?.toLowerCase().trim();
+        if (q && q.length > 1) counts[q] = (counts[q] || 0) + 1;
+      });
+
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 30);
+      const maxCount = sorted.length > 0 ? sorted[0][1] : 1;
+
+      document.getElementById('search-trends').innerHTML = sorted.map(([query, count]) => {
+        const isHot = count >= maxCount * 0.5;
+        return `<span class="search-tag ${isHot ? 'hot' : ''}">${query} (${count})</span>`;
+      }).join('');
+    }
+
+    async function loadTopTeachings(days, since) {
       const { data } = await supabase
         .from('access_logs')
         .select('volume, file')
-        .gte('created_at', new Date(Date.now() - 30 * 86400000).toISOString());
+        .gte('created_at', since);
 
       if (!data || data.length === 0) {
-        document.getElementById('top-teachings').innerHTML = '<div class="loading">Sem dados ainda.</div>';
+        document.getElementById('top-teachings').innerHTML = '<div class="loading">Sem dados.</div>';
         return;
       }
 
@@ -650,32 +934,91 @@
         counts[key] = (counts[key] || 0) + 1;
       });
 
-      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 20);
-      const volNums = { mioshiec1: 'V1', mioshiec2: 'V2', mioshiec3: 'V3', mioshiec4: 'V4' };
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 15);
 
       document.getElementById('top-teachings').innerHTML = `
         <table class="data-table">
           <thead><tr><th>#</th><th>Arquivo</th><th>Volume</th><th>Visualizações</th></tr></thead>
           <tbody>${sorted.map((item, i) => {
             const [vol, file] = item[0].split('/');
-            return `<tr><td>${i + 1}</td><td style="font-family:monospace; font-size:0.8rem;">${file.replace('.html.json', '')}</td><td>${volNums[vol] || vol}</td><td><strong>${item[1]}</strong></td></tr>`;
+            return `<tr><td>${i + 1}</td><td style="font-family:monospace; font-size:0.8rem;">${file.replace('.html.json', '')}</td><td>${VOL_SHORT[vol] || vol}</td><td><strong>${item[1]}</strong></td></tr>`;
           }).join('')}</tbody>
         </table>`;
     }
 
-    async function loadRecentActivity() {
+    async function loadHeatmap(days, since) {
+      const { data } = await supabase
+        .from('access_logs')
+        .select('created_at')
+        .gte('created_at', since);
+
+      if (!data || data.length === 0) {
+        document.getElementById('heatmap-chart').innerHTML = '<div class="loading">Sem dados.</div>';
+        return;
+      }
+
+      const hourCounts = new Array(24).fill(0);
+      data.forEach(d => {
+        const h = new Date(d.created_at).getHours();
+        hourCounts[h]++;
+      });
+
+      const max = Math.max(...hourCounts, 1);
+
+      document.getElementById('heatmap-chart').innerHTML = `
+        <div class="heatmap">
+          ${hourCounts.map(c => {
+            const level = c === 0 ? 0 : c < max * 0.25 ? 1 : c < max * 0.5 ? 2 : c < max * 0.75 ? 3 : 4;
+            return `<div class="heatmap-cell" data-level="${level}" title="${c} acessos"></div>`;
+          }).join('')}
+        </div>`;
+    }
+
+    async function loadCompletionRates(days, since) {
+      const { data } = await supabase
+        .from('reading_positions')
+        .select('volume, progress_pct')
+        .gte('updated_at', since);
+
+      if (!data || data.length === 0) {
+        document.getElementById('completion-chart').innerHTML = '<div class="loading">Sem dados.</div>';
+        return;
+      }
+
+      const volData = {};
+      VOLUMES.forEach(v => volData[v.key] = { total: 0, completed: 0 });
+      data.forEach(d => {
+        if (volData[d.volume]) {
+          volData[d.volume].total++;
+          if (d.progress_pct >= 90) volData[d.volume].completed++;
+        }
+      });
+
+      document.getElementById('completion-chart').innerHTML = VOLUMES.map(vol => {
+        const d = volData[vol.key];
+        const rate = d.total > 0 ? Math.round(d.completed / d.total * 100) : 0;
+        const shortName = vol.name.split('—')[0].trim();
+        return `
+          <div class="chart-bar">
+            <div class="chart-bar-label">${shortName}</div>
+            <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${rate}%"></div></div>
+            <div class="chart-bar-value">${rate}%</div>
+          </div>`;
+      }).join('');
+    }
+
+    async function loadRecentActivity(days) {
       const { data } = await supabase
         .from('access_logs')
         .select('user_id, volume, file, action, created_at')
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(25);
 
       if (!data || data.length === 0) {
-        document.getElementById('recent-activity').innerHTML = '<div class="loading">Sem atividade registrada.</div>';
+        document.getElementById('recent-activity').innerHTML = '<div class="loading">Sem atividade.</div>';
         return;
       }
 
-      // Fetch user names
       const userIds = [...new Set(data.map(d => d.user_id))];
       const { data: profiles } = await supabase
         .from('user_profiles')
@@ -684,33 +1027,54 @@
       const nameMap = {};
       (profiles || []).forEach(p => nameMap[p.id] = p.display_name);
 
-      const volNums = { mioshiec1: 'V1', mioshiec2: 'V2', mioshiec3: 'V3', mioshiec4: 'V4' };
-
       document.getElementById('recent-activity').innerHTML = `
         <table class="data-table">
           <thead><tr><th>Usuário</th><th>Ação</th><th>Volume</th><th>Arquivo</th><th>Data</th></tr></thead>
           <tbody>${data.map(d => {
             const date = new Date(d.created_at);
             const dateStr = date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            return `<tr><td>${nameMap[d.user_id] || 'Desconhecido'}</td><td>${d.action}</td><td>${volNums[d.volume] || d.volume}</td><td style="font-family:monospace; font-size:0.8rem;">${d.file.replace('.html.json', '')}</td><td style="font-size:0.8rem; color:var(--text-muted);">${dateStr}</td></tr>`;
+            return `<tr><td>${nameMap[d.user_id] || 'Desconhecido'}</td><td>${d.action}</td><td>${VOL_SHORT[d.volume] || d.volume}</td><td style="font-family:monospace; font-size:0.8rem;">${d.file.replace('.html.json', '')}</td><td style="font-size:0.8rem; color:var(--text-muted);">${dateStr}</td></tr>`;
           }).join('')}</tbody>
         </table>`;
     }
 
-    async function loadReadingStats() {
-      const { count: totalPositions } = await supabase
-        .from('reading_positions')
-        .select('*', { count: 'exact', head: true });
+    async function loadSyncStats() {
+      const [posRes, favRes, hlRes] = await Promise.all([
+        supabase.from('reading_positions').select('*', { count: 'exact', head: true }),
+        supabase.from('synced_favorites').select('*', { count: 'exact', head: true }),
+        supabase.from('user_highlights').select('*', { count: 'exact', head: true })
+      ]);
 
-      const { count: totalFavorites } = await supabase
-        .from('synced_favorites')
-        .select('*', { count: 'exact', head: true });
-
-      document.getElementById('reading-stats').innerHTML = `
+      document.getElementById('sync-stats').innerHTML = `
         <div class="stats-grid">
-          <div class="stat-card"><div class="stat-value">${totalPositions || 0}</div><div class="stat-label">Posições Salvas</div></div>
-          <div class="stat-card"><div class="stat-value">${totalFavorites || 0}</div><div class="stat-label">Favoritos Sync</div></div>
+          <div class="stat-card"><div class="stat-value">${posRes.count || 0}</div><div class="stat-label">Posições Salvas</div></div>
+          <div class="stat-card"><div class="stat-value">${favRes.count || 0}</div><div class="stat-label">Favoritos</div></div>
+          <div class="stat-card"><div class="stat-value">${hlRes.count || 0}</div><div class="stat-label">Destaques</div></div>
         </div>`;
+    }
+
+    async function loadRoleDistribution() {
+      const { data } = await supabase.from('user_profiles').select('role');
+      if (!data || data.length === 0) {
+        document.getElementById('role-distribution').innerHTML = '<div class="loading">Sem dados.</div>';
+        return;
+      }
+
+      const counts = {};
+      data.forEach(d => counts[d.role] = (counts[d.role] || 0) + 1);
+      const total = data.length;
+      const max = Math.max(...Object.values(counts), 1);
+
+      document.getElementById('role-distribution').innerHTML = Object.entries(counts).map(([role, count]) => {
+        const pct = Math.round(count / max * 100);
+        const pctTotal = Math.round(count / total * 100);
+        return `
+          <div class="chart-bar">
+            <div class="chart-bar-label">${role}</div>
+            <div class="chart-bar-track"><div class="chart-bar-fill" style="width:${pct}%"></div></div>
+            <div class="chart-bar-value">${count} (${pctTotal}%)</div>
+          </div>`;
+      }).join('');
     }
 
     checkAdmin();
