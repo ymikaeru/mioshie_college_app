@@ -328,6 +328,55 @@
     .retention-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
     .retention-bar { height: 6px; border-radius: 3px; background: var(--bg); overflow: hidden; display: inline-block; width: 60px; vertical-align: middle; margin-right: 6px; }
     .retention-bar-fill { height: 100%; background: #34c759; border-radius: 3px; }
+    /* Default permissions panel */
+    .default-perm-panel {
+      border: 1px solid rgba(184,134,11,0.3); border-radius: 12px;
+      background: rgba(184,134,11,0.03); margin-bottom: 28px; overflow: hidden;
+    }
+    .default-perm-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; cursor: pointer; user-select: none;
+      border-bottom: 1px solid transparent; transition: border-color 0.2s;
+    }
+    .default-perm-header:hover { background: rgba(184,134,11,0.05); }
+    .default-perm-header.open { border-bottom-color: rgba(184,134,11,0.2); }
+    .default-perm-header-left { display: flex; align-items: center; gap: 10px; }
+    .default-perm-icon { font-size: 1.1rem; }
+    .default-perm-title { font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+    .default-perm-subtitle { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+    .default-perm-chevron { font-size: 0.75rem; color: var(--text-muted); transition: transform 0.2s; }
+    .default-perm-chevron.open { transform: rotate(180deg); }
+    .default-perm-body { display: none; padding: 20px; }
+    .default-perm-body.open { display: block; }
+    .default-perm-warning {
+      display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+      border-radius: 8px; background: rgba(255,59,48,0.07); border: 1px solid rgba(255,59,48,0.2);
+      font-size: 0.82rem; color: var(--text); margin-bottom: 16px; line-height: 1.5;
+    }
+    .default-perm-warning-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .apply-all-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border: none; border-radius: 10px;
+      background: linear-gradient(135deg, #e05252, #c0392b);
+      color: #fff; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .apply-all-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .apply-all-btn:active { transform: translateY(0); }
+    .apply-all-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .apply-all-progress {
+      margin-top: 14px; display: none;
+      background: var(--bg); border-radius: 8px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .apply-all-progress-bar {
+      height: 6px; background: var(--accent); border-radius: 8px;
+      width: 0%; transition: width 0.3s ease;
+    }
+    .apply-all-progress-label {
+      font-size: 0.78rem; color: var(--text-muted); padding: 6px 10px;
+    }
+
     /* Reports tab */
     .report-list { display: flex; flex-direction: column; gap: 10px; }
     .report-card {
@@ -342,7 +391,8 @@
       text-transform: uppercase; letter-spacing: 0.5px;
     }
     .report-file { font-size: 0.78rem; color: var(--text-muted); font-family: monospace; }
-    .report-lang { font-size: 0.7rem; color: var(--text-muted); margin-left: auto; }
+    .report-user { font-size: 0.7rem; font-weight: 600; color: var(--accent); padding: 2px 8px; border-radius: 6px; background: rgba(184,134,11,0.1); margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+    .report-lang { font-size: 0.7rem; color: var(--text-muted); }
     .report-date { font-size: 0.72rem; color: var(--text-muted); }
     .report-text {
       font-size: 0.85rem; line-height: 1.5; margin-bottom: 6px;
@@ -401,6 +451,38 @@
 
           <!-- Users Tab -->
           <div class="tab-content active" id="tab-users">
+
+          <!-- Default Permissions Panel -->
+          <div class="default-perm-panel" id="default-perm-panel">
+            <div class="default-perm-header" id="default-perm-header" onclick="toggleDefaultPermPanel()">
+              <div class="default-perm-header-left">
+                <span class="default-perm-icon">🔑</span>
+                <div>
+                  <div class="default-perm-title">Permissão Padrão para Todos</div>
+                  <div class="default-perm-subtitle">Configure e aplique um acesso padrão para todos os usuários cadastrados</div>
+                </div>
+              </div>
+              <span class="default-perm-chevron" id="default-perm-chevron">▼</span>
+            </div>
+            <div class="default-perm-body" id="default-perm-body">
+              <div class="default-perm-warning">
+                <span class="default-perm-warning-icon">⚠️</span>
+                <span>Esta ação <strong>sobrescreve as permissões de todos os usuários</strong> (exceto admins) com a configuração abaixo. A ação não pode ser desfeita automaticamente.</span>
+              </div>
+              <div id="default-perm-volumes" style="margin-bottom:20px;"></div>
+              <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                <button class="apply-all-btn" id="apply-all-btn" onclick="applyDefaultPermissions()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  Aplicar para Todos os Usuários
+                </button>
+                <span id="apply-all-msg" class="msg" style="margin:0; padding:6px 12px;"></span>
+              </div>
+              <div class="apply-all-progress" id="apply-all-progress">
+                <div class="apply-all-progress-bar" id="apply-all-bar"></div>
+                <div class="apply-all-progress-label" id="apply-all-label">Preparando...</div>
+              </div>
+            </div>
+          </div>
 
           <!-- Add User -->
           <div class="admin-section">
@@ -659,7 +741,7 @@
 
       const { data, error } = await supabase
         .from('translation_reports')
-        .select('id, vol, file, topic_id, lang, selected_text, description, created_at, status')
+        .select('id, vol, file, topic_id, lang, selected_text, description, created_at, status, user_id')
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -720,6 +802,12 @@
         const fileLabel = r.file?.replace('.html.json','') || '—';
         const langLabel = r.lang === 'ja' ? '🇯🇵 Japonês' : '🇧🇷 Português';
 
+        let userName = 'Usuário Desconhecido';
+        if (r.user_id) {
+          const u = allUsers.find(x => x.id === r.user_id);
+          if (u) userName = u.display_name || u.email || 'Usuário';
+        }
+
         const verifyBtn = isPending
           ? `<button class="report-verify-btn" onclick="verifyReport('${r.id}', this)" title="Marcar como verificado">
                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -735,6 +823,10 @@
               <span class="report-vol">${VOL_SHORT[r.vol] || r.vol}</span>
               <span class="report-file">${fileLabel}</span>
               <span class="report-lang">${langLabel}</span>
+              <span class="report-user">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                ${userName}
+              </span>
               <span class="report-date">${date}</span>
               <div class="report-actions" style="display:flex; gap:8px;">
                 ${editBtn}
@@ -773,10 +865,15 @@
       if (verified.length > 0) {
         html += `
           <div class="report-verified-section" id="verifiedSection">
-            <button class="report-verified-toggle" id="verifiedToggle" onclick="toggleVerifiedSection()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="verifiedToggleIcon"><polyline points="6 9 12 15 18 9"/></svg>
-              Histórico de Verificados <span style="opacity:0.6; font-weight:400;">(${verified.length})</span>
-            </button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <button class="report-verified-toggle" id="verifiedToggle" onclick="toggleVerifiedSection()" style="margin:0;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="verifiedToggleIcon"><polyline points="6 9 12 15 18 9"/></svg>
+                Histórico de Verificados <span style="opacity:0.6; font-weight:400;">(${verified.length})</span>
+              </button>
+              <button class="report-verify-btn" style="background:rgba(255,59,48,0.1); color:#ff3b30; border-color:rgba(255,59,48,0.2); padding:6px 12px; font-size:0.75rem;" onclick="clearVerifiedHistory(this)" title="Apagar todos os relatórios verificados">
+                ✕ Limpar Histórico
+              </button>
+            </div>
             <div class="report-verified-body" id="verifiedBody" style="display:none">
               <div class="report-list">`;
 
@@ -830,6 +927,37 @@
       _renderReports();
     };
 
+    window.clearVerifiedHistory = async function(btnEl) {
+      if (!confirm('Tem certeza? Isso apagará permanentemente todos os reportes verificados do banco de dados.')) return;
+      
+      const originalText = btnEl.innerHTML;
+      btnEl.disabled = true;
+      btnEl.innerHTML = 'Limpando...';
+
+      const { data, error } = await supabase
+        .from('translation_reports')
+        .delete()
+        .eq('status', 'verified')
+        .select();
+
+      if (error) {
+        console.error('[admin] clearVerifiedHistory failed:', error.message);
+        alert('Erro ao limpar histórico: ' + error.message);
+        btnEl.disabled = false;
+        btnEl.innerHTML = originalText;
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        alert('Nenhum relatório foi apagado.\nO banco de dados possivelmente bloqueou a exclusão (RLS).');
+      } else {
+        alert(`${data.length} relatórios apagados permanentemente.`);
+      }
+
+      // Force reload to refresh UI
+      _reportsLoaded = false;
+      loadReports();
+    };
 
     // ── Editor Logic ────────────────────────────────────────────────────────
     let _currentEditVol = null;
@@ -1084,7 +1212,8 @@
       }
 
       loadUsers();
-      loadVolumeFiles();
+      await loadVolumeFiles();
+      renderDefaultPermVolumes();
     }
 
     // ── Volume files for permission editor ────────────────────────
@@ -1364,6 +1493,187 @@
       if (!volBlock) return;
       const fileCheckboxes = volBlock.querySelectorAll('.file-list input[type=checkbox]');
       fileCheckboxes.forEach(cb => { cb.checked = checked; });
+    };
+
+    // ── Default Permissions Panel ─────────────────────────────────
+
+    window.toggleDefaultPermPanel = function() {
+      const body = document.getElementById('default-perm-body');
+      const header = document.getElementById('default-perm-header');
+      const chevron = document.getElementById('default-perm-chevron');
+      const isOpen = body.classList.contains('open');
+      body.classList.toggle('open', !isOpen);
+      header.classList.toggle('open', !isOpen);
+      chevron.classList.toggle('open', !isOpen);
+    };
+
+    function renderDefaultPermVolumes() {
+      const volumesDiv = document.getElementById('default-perm-volumes');
+      if (!volumesDiv) return;
+
+      volumesDiv.innerHTML = VOLUMES.map(vol => {
+        const categories = volumeCategories[vol.key] || {};
+        const totalFiles = Object.values(categories).reduce((sum, files) => sum + files.length, 0);
+
+        return `
+          <div class="vol-block" data-vol="${vol.key}" data-context="default">
+            <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')">
+              <input type="checkbox" onchange="toggleDefaultVolume('${vol.key}', this.checked)">
+              <span class="vol-title">${vol.name}</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">0/${totalFiles}</span>
+            </div>
+            <div class="vol-body">
+              <div style="margin-bottom:12px;">
+                <label style="font-size:0.82rem; cursor:pointer;">
+                  <input type="checkbox" onchange="toggleDefaultAllFiles('${vol.key}', this.checked)">
+                  Acesso a todas as categorias
+                </label>
+              </div>
+              ${Object.entries(categories).map(([sectionName, files]) => `
+                <div class="vol-block" style="margin-bottom:8px;">
+                  <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')" style="padding:8px 12px;">
+                    <input type="checkbox" onchange="toggleDefaultSection('${vol.key}', this.checked, this)">
+                    <span class="vol-title" style="font-size:0.85rem;">${sectionName}</span>
+                    <span style="font-size:0.7rem; color:var(--text-muted);">${files.length} itens</span>
+                  </div>
+                  <div class="vol-body" style="padding:8px 12px;">
+                    <div class="file-list">
+                      ${files.map(f => `
+                        <div class="file-item">
+                          <input type="checkbox" id="dpf-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" data-ctx="default">
+                          <label for="dpf-${vol.key}-${f.file}">${f.title}</label>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.toggleDefaultVolume = function(vol, enabled) {
+      const panel = document.getElementById('default-perm-volumes');
+      const volBlock = panel?.querySelector(`.vol-block[data-vol="${vol}"]`);
+      if (!volBlock) return;
+      volBlock.querySelectorAll('.vol-body input[type=checkbox]').forEach(cb => { cb.checked = enabled; });
+    };
+
+    window.toggleDefaultAllFiles = function(vol, all) {
+      const panel = document.getElementById('default-perm-volumes');
+      const volBlock = panel?.querySelector(`.vol-block[data-vol="${vol}"]`);
+      if (!volBlock) return;
+      volBlock.querySelectorAll('.file-list input[type=checkbox]').forEach(cb => { cb.checked = all; });
+    };
+
+    window.toggleDefaultSection = function(vol, checked, headerCheckbox) {
+      const volBlock = headerCheckbox.closest('.vol-block');
+      if (!volBlock) return;
+      volBlock.querySelectorAll('.file-list input[type=checkbox]').forEach(cb => { cb.checked = checked; });
+    };
+
+    function readDefaultPermConfig() {
+      const panel = document.getElementById('default-perm-volumes');
+      const perms = [];
+      panel?.querySelectorAll(':scope > .vol-block').forEach(volBlock => {
+        const volKey = volBlock.dataset.vol;
+        const volCheckbox = volBlock.querySelector(':scope > .vol-header input[type=checkbox]');
+        if (!volCheckbox?.checked) return;
+
+        const allCheckbox = volBlock.querySelector(':scope > .vol-body > div:first-child input[type=checkbox]');
+        if (allCheckbox?.checked) {
+          perms.push({ volume: volKey, files: null });
+        } else {
+          const checked = volBlock.querySelectorAll('.file-list input[type=checkbox]:checked');
+          const files = Array.from(checked).map(cb => cb.value);
+          if (files.length > 0) perms.push({ volume: volKey, files });
+        }
+      });
+      return perms;
+    }
+
+    window.applyDefaultPermissions = async function() {
+      const btn = document.getElementById('apply-all-btn');
+      const msg = document.getElementById('apply-all-msg');
+      const progressWrap = document.getElementById('apply-all-progress');
+      const progressBar = document.getElementById('apply-all-bar');
+      const progressLabel = document.getElementById('apply-all-label');
+
+      const defaultPerms = readDefaultPermConfig();
+
+      if (defaultPerms.length === 0) {
+        msg.textContent = 'Configure ao menos uma permissão antes de aplicar.';
+        msg.className = 'msg err';
+        return;
+      }
+
+      const nonAdminUsers = allUsers.filter(u => u.role !== 'admin');
+      if (nonAdminUsers.length === 0) {
+        msg.textContent = 'Nenhum usuário (não-admin) encontrado.';
+        msg.className = 'msg err';
+        return;
+      }
+
+      const totalVols = defaultPerms.map(p => p.volume).join(', ');
+      const confirmMsg = `Isso vai sobrescrever as permissões de ${nonAdminUsers.length} usuário(s) com:\n\n${totalVols}\n\nDeseja continuar?`;
+      if (!confirm(confirmMsg)) return;
+
+      btn.disabled = true;
+      msg.className = 'msg';
+      msg.textContent = '';
+      progressWrap.style.display = 'block';
+
+      let done = 0;
+      let errors = 0;
+
+      for (const user of nonAdminUsers) {
+        const pct = Math.round((done / nonAdminUsers.length) * 100);
+        progressBar.style.width = pct + '%';
+        progressLabel.textContent = `Aplicando para ${user.display_name || user.email} (${done + 1}/${nonAdminUsers.length})...`;
+
+        try {
+          // Delete existing permissions for this user
+          const { error: delErr } = await supabase
+            .from('user_permissions')
+            .delete()
+            .eq('user_id', user.id);
+
+          if (delErr) throw delErr;
+
+          // Insert default permissions
+          if (defaultPerms.length > 0) {
+            const rows = defaultPerms.map(p => ({ user_id: user.id, volume: p.volume, files: p.files }));
+            const { error: insErr } = await supabase.from('user_permissions').insert(rows);
+            if (insErr) throw insErr;
+          }
+        } catch (e) {
+          console.error(`[applyDefault] Failed for ${user.id}:`, e.message);
+          errors++;
+        }
+
+        done++;
+      }
+
+      progressBar.style.width = '100%';
+
+      if (errors === 0) {
+        progressLabel.textContent = `✅ Concluído — ${done} usuário(s) atualizados.`;
+        msg.textContent = `Permissões aplicadas com sucesso para ${done} usuário(s)!`;
+        msg.className = 'msg ok';
+      } else {
+        progressLabel.textContent = `⚠ Concluído com ${errors} erro(s). Verifique o console.`;
+        msg.textContent = `Concluído com ${errors} erro(s) de ${done} usuários.`;
+        msg.className = 'msg err';
+      }
+
+      btn.disabled = false;
+
+      setTimeout(() => {
+        progressWrap.style.display = 'none';
+        progressBar.style.width = '0%';
+      }, 5000);
     };
 
     window.savePermissions = async function() {
