@@ -25,22 +25,29 @@ export async function storageFetch(path) {
 
   if (!session) {
     const baseUrl = window.DATA_OUTPUT_DIR || 'site_data';
-    const res = await fetch(`${baseUrl}/${path}`);
+    const res = await fetch(`${baseUrl}/${path}`, { cache: 'no-store' });
     if (!res.ok) {
       throw new Error('Authentication required or file not found');
     }
     return res.json();
   }
 
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .download(path);
+  // Fetch diretamente com cache: 'no-store' para garantir conteúdo sempre atualizado.
+  // O supabase.storage.download() pode servir resposta cacheada pelo browser.
+  const storageUrl = `${SUPABASE_CONFIG.url}/storage/v1/object/authenticated/${BUCKET}/${path}`;
+  const res = await fetch(storageUrl, {
+    cache: 'no-store',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: SUPABASE_CONFIG.anonKey
+    }
+  });
 
-  if (error) {
-    throw new Error(`Storage download failed: ${error.message}`);
+  if (!res.ok) {
+    throw new Error(`Storage download failed: ${res.status}`);
   }
 
-  return JSON.parse(await data.text());
+  return res.json();
 }
 
 /**
