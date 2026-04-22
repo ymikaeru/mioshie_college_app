@@ -122,7 +122,7 @@ function _initMobileNav() {
       const lang = localStorage.getItem('site_lang') || 'pt';
       const fallback = (MENU_TEXTS[lang] || MENU_TEXTS.pt).title;
       const docTitle = document.title;
-      const match = docTitle.match(/^Meishu-Sama:\s*(.+?)\s*-\s*Mioshie College$/);
+      const match = docTitle.match(/^Meishu-Sama:\s*(.+?)\s*-\s*Caminho da Felicidade$/);
       titleEl.textContent = match ? match[1] : fallback;
     }
     openMobileNav();

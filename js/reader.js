@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let favorites = [];
         try { favorites = JSON.parse(localStorage.getItem('savedFavorites') || '[]'); } catch (e) { }
         const topicIndex = getVisibleTopicIndex();
-        const title = document.title.replace('Meishu-Sama: ', '').replace(' - Mioshie College', '');
+        const title = document.title.replace('Meishu-Sama: ', '').replace(' - Caminho da Felicidade', '');
         const totalTopics = window._currentTotalTopics || 1;
 
         let topicTitle = '', snippet = '';

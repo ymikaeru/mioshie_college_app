@@ -84,7 +84,7 @@ function renderReader(volId, filename, json, allFiles, searchQuery, searchTopicT
     window._currentTotalTopics = topicsFound.length;
 
     const cleanTitle = mainTitleToDisplay.replace(/<br\s*\/?>/gi, ' ');
-    document.title = `Meishu-Sama: ${cleanTitle} - Mioshie College`;
+    document.title = `Meishu-Sama: ${cleanTitle} - Caminho da Felicidade`;
     try {
         const history = JSON.parse(localStorage.getItem('readHistory') || '[]');
         const filtered = history.filter(h => h.file !== filename || h.vol !== volId);

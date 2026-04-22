@@ -32,7 +32,7 @@ function stripHTML(html) {
   return tmp.textContent || tmp.innerText || '';
 }
 
-export async function generateBooklet(teachings, title = 'Apostila Mioshie College') {
+export async function generateBooklet(teachings, title = 'Apostila Caminho da Felicidade') {
   const PDFLib = await loadJsPDF();
   const doc = new PDFLib({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
