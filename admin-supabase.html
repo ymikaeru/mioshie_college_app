@@ -94,8 +94,9 @@
 
     .file-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
     .file-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-    .file-item label { font-size: 0.82rem; color: var(--text); cursor: pointer; flex: 1; }
-    .file-item input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--accent); }
+    .file-item label { font-size: 0.82rem; color: var(--text); cursor: pointer; flex: 1; display: flex; align-items: center; gap: 6px; }
+    .file-item input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--accent); flex-shrink: 0; }
+    .file-num { font-size: 0.7rem; font-weight: 700; color: var(--accent); opacity: 0.7; min-width: 22px; text-align: right; flex-shrink: 0; }
 
     .save-bar {
       position: fixed; bottom: 0; left: 0; right: 0;
@@ -447,33 +448,37 @@
             <div class="admin-tab active" onclick="switchTab('users')">Usuários</div>
             <div class="admin-tab" onclick="switchTab('analytics')">Analytics</div>
             <div class="admin-tab" onclick="switchTab('reports')">⚠ Relatórios <span class="tab-badge empty" id="reportsTabBadge">0</span></div>
-          </div>
-
           <!-- Users Tab -->
           <div class="tab-content active" id="tab-users">
 
           <!-- Default Permissions Panel -->
           <div class="default-perm-panel" id="default-perm-panel">
             <div class="default-perm-header" id="default-perm-header" onclick="toggleDefaultPermPanel()">
-              <div class="default-perm-header-left">
-                <span class="default-perm-icon">🔑</span>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.1rem;">🚫</span>
                 <div>
-                  <div class="default-perm-title">Permissão Padrão para Todos</div>
-                  <div class="default-perm-subtitle">Configure e aplique um acesso padrão para todos os usuários cadastrados</div>
+                  <h3 style="margin:0; font-size:0.95rem; font-weight:600; color:var(--text); display:flex; align-items:center; gap:6px;">
+                    Restrição Padrão para Todos
+                  </h3>
+                  <p style="margin:2px 0 0; font-size:0.75rem; color:var(--text-muted);">
+                    Configure e aplique uma restrição padrão para todos os usuários cadastrados
+                  </p>
                 </div>
               </div>
               <span class="default-perm-chevron" id="default-perm-chevron">▼</span>
             </div>
             <div class="default-perm-body" id="default-perm-body">
               <div class="default-perm-warning">
-                <span class="default-perm-warning-icon">⚠️</span>
-                <span>Esta ação <strong>sobrescreve as permissões de todos os usuários</strong> (exceto admins) com a configuração abaixo. A ação não pode ser desfeita automaticamente.</span>
+                <span style="font-size:1.1rem; flex-shrink:0;">⚠</span>
+                <p style="margin:0; font-size:0.8rem; line-height:1.4;">
+                  Esta ação <strong>sobrescreve as restrições de todos os usuários</strong> (exceto admins) com a configuração abaixo. A ação não pode ser desfeita automaticamente.
+                </p>
               </div>
-              <div id="default-perm-volumes" style="margin-bottom:20px;"></div>
+              <div id="default-perm-volumes" class="perm-volumes" style="margin-bottom:16px;"></div>
               <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
                 <button class="apply-all-btn" id="apply-all-btn" onclick="applyDefaultPermissions()">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                  Aplicar para Todos os Usuários
+                  Aplicar Restrições para Todos os Usuários
                 </button>
                 <span id="apply-all-msg" class="msg" style="margin:0; padding:6px 12px;"></span>
               </div>
@@ -518,10 +523,11 @@
 
           <!-- Permission Editor -->
           <div class="perm-editor" id="perm-editor">
-            <h3 id="perm-editor-title">Permissões</h3>
-            <div id="perm-volumes"></div>
+            <h3 id="perm-editor-title">Restrições de Acesso</h3>
+            <p>Selecione os volumes e arquivos que este usuário <strong>NÃO PODERÁ</strong> ver. (Deixe desmarcado para permitir o acesso livre).</p>
+            <div id="perm-volumes" class="perm-volumes"></div>
             <div style="margin-top:16px; display:flex; gap:10px;">
-              <button class="login-submit-btn" style="width:auto; padding:10px 24px;" onclick="savePermissions()">Salvar Permissões</button>
+              <button class="login-submit-btn" style="width:auto; padding:10px 24px;" onclick="savePermissions()">💾 Salvar Restrições</button>
               <button style="padding:10px 24px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); cursor:pointer;" onclick="closePermEditor()">Cancelar</button>
             </div>
             <div id="save-perm-msg" class="msg" style="margin-top:12px;"></div>
@@ -1229,10 +1235,18 @@
             for (const vol of VOLUMES) {
               const volMap = sectionMap[vol.key] || {};
               const categories = {};
+              let fileIndex = 0;
               for (const [file, info] of Object.entries(volMap)) {
-                const sectionName = info.pt || 'Outros';
+                fileIndex++;
+                // Backward compat: old format had info.pt = section name (no info.section field)
+                // New format: info.section = category, info.pt = individual topic title
+                const isNewFormat = 'section' in info;
+                const sectionName = isNewFormat ? (info.section || 'Outros') : (info.pt || 'Outros');
+                const title = isNewFormat
+                  ? (info.pt || file.replace('.html.json', ''))
+                  : file.replace('.html.json', '');
                 if (!categories[sectionName]) categories[sectionName] = [];
-                categories[sectionName].push({ file, title: info.pt });
+                categories[sectionName].push({ file, title, num: fileIndex });
               }
               volumeCategories[vol.key] = categories;
             }
@@ -1364,7 +1378,7 @@
           <div class="stat-card"><div class="stat-value">${(highlights || []).length}</div><div class="stat-label">Destaques</div></div>
         </div>
         <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:16px;">
-          <strong>Permissões:</strong> ${(perms || []).map(p => `${VOL_SHORT[p.volume] || p.volume}: ${p.files === null ? 'todos' : p.files.length + ' arquivos'}`).join(', ') || 'Nenhuma'}
+          <strong>Restrições:</strong> ${(perms || []).map(p => `${VOL_SHORT[p.volume] || p.volume}: ${p.files === null ? 'todos' : p.files.length + ' arquivos'}`).join(', ') || 'Nenhuma'}
         </p>
       `;
 
@@ -1401,10 +1415,9 @@
       selectedUserId = userId;
       renderUserList();
 
-      const editor = document.getElementById('perm-editor');
       const title = document.getElementById('perm-editor-title');
       const user = allUsers.find(u => u.id === userId);
-      title.textContent = `Permissões — ${user?.display_name || 'Usuário'}`;
+      title.textContent = `Restrições — ${user?.display_name || 'Usuário'}`;
 
       const { data: perms } = await supabase
         .from('user_permissions')
@@ -1418,46 +1431,48 @@
 
       const volumesDiv = document.getElementById('perm-volumes');
       volumesDiv.innerHTML = VOLUMES.map(vol => {
-        const hasAccess = permMap[vol.key] !== undefined;
-        const isAll = permMap[vol.key] === 'all';
-        const selectedFiles = isAll ? new Set() : new Set(permMap[vol.key] || []);
+        const isBlocked = permMap[vol.key] !== undefined; // In blacklist, presence means blocked completely or partially
+        const isAllBlocked = permMap[vol.key] === 'all';
+        const blockedFiles = isAllBlocked ? new Set() : new Set(permMap[vol.key] || []);
         const categories = volumeCategories[vol.key] || {};
 
         const totalFiles = Object.values(categories).reduce((sum, files) => sum + files.length, 0);
-        const selectedCount = isAll ? totalFiles : Object.values(categories).reduce((sum, files) => sum + files.filter(f => selectedFiles.has(f.file)).length, 0);
+        const blockedCount = isAllBlocked ? totalFiles : Object.values(categories).reduce((sum, files) => sum + files.filter(f => blockedFiles.has(f.file)).length, 0);
 
         return `
           <div class="vol-block" data-vol="${vol.key}">
             <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')">
-              <input type="checkbox" ${hasAccess ? 'checked' : ''} onchange="toggleVolume('${vol.key}', this.checked)">
+              <input type="checkbox" ${isBlocked ? 'checked' : ''} onchange="toggleVolume('${vol.key}', this.checked)">
               <span class="vol-title">${vol.name}</span>
-              <span style="font-size:0.75rem; color:var(--text-muted);">${isAll ? 'Todos' : selectedCount + '/' + totalFiles}</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);">${isAllBlocked ? 'Todos bloqueados' : blockedCount + '/' + totalFiles + ' bloqueados'}</span>
             </div>
             <div class="vol-body">
               <div style="margin-bottom:12px;">
-                <label style="font-size:0.82rem; cursor:pointer;">
-                  <input type="checkbox" ${isAll ? 'checked' : ''} onchange="toggleAllFiles('${vol.key}', this.checked)">
-                  Acesso a todas as categorias
+                <label style="font-size:0.82rem; cursor:pointer; color:#e05252; font-weight:600;">
+                  <input type="checkbox" ${isAllBlocked ? 'checked' : ''} onchange="toggleAllFiles('${vol.key}', this.checked)">
+                  Bloquear todo o volume
                 </label>
               </div>
               ${Object.entries(categories).map(([sectionName, files]) => {
-                const sectionAll = isAll || files.every(f => selectedFiles.has(f.file));
-                const sectionSome = !sectionAll && files.some(f => selectedFiles.has(f.file));
+                const sectionAllBlocked = isAllBlocked || files.every(f => blockedFiles.has(f.file));
+                const sectionSomeBlocked = !sectionAllBlocked && files.some(f => blockedFiles.has(f.file));
                 return `
                   <div class="vol-block" style="margin-bottom:8px;">
-                    <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')" style="padding:8px 12px;">
-                      <input type="checkbox" ${sectionAll ? 'checked' : ''} ${sectionSome && !sectionAll ? 'style="opacity:0.5"' : ''} onchange="toggleSection('${vol.key}', this.checked, this)">
-                      <span class="vol-title" style="font-size:0.85rem;">${sectionName}</span>
+                    <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')" style="padding:8px 12px; border-color:${sectionSomeBlocked || sectionAllBlocked ? 'rgba(224,82,82,0.3)' : 'var(--border)'}; background:${sectionSomeBlocked || sectionAllBlocked ? 'rgba(224,82,82,0.03)' : 'transparent'}">
+                      <input type="checkbox" ${sectionAllBlocked ? 'checked' : ''} ${sectionSomeBlocked && !sectionAllBlocked ? 'style="opacity:0.5"' : ''} onchange="toggleSection('${vol.key}', this.checked, this)">
+                      <span class="vol-title" style="font-size:0.85rem; color:${sectionSomeBlocked || sectionAllBlocked ? '#e05252' : ''}">${sectionName}</span>
                       <span style="font-size:0.7rem; color:var(--text-muted);">${files.length} itens</span>
                     </div>
                     <div class="vol-body" style="padding:8px 12px;">
                       <div class="file-list" id="files-${vol.key}">
-                        ${files.map(f => `
+                        ${files.map(f => {
+                          const isBlockedItem = blockedFiles.has(f.file) || isAllBlocked;
+                          return `
                           <div class="file-item">
-                            <input type="checkbox" id="file-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" ${selectedFiles.has(f.file) ? 'checked' : ''}>
-                            <label for="file-${vol.key}-${f.file}">${f.title}</label>
+                            <input type="checkbox" id="file-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" ${isBlockedItem ? 'checked' : ''}>
+                            <label for="file-${vol.key}-${f.file}" style="${isBlockedItem ? 'text-decoration:line-through; opacity:0.6; color:#e05252;' : ''}">${f.num != null ? `<span class="file-num">${f.num}</span>` : ''}${f.title}</label>
                           </div>
-                        `).join('')}
+                        `}).join('')}
                       </div>
                     </div>
                   </div>
@@ -1524,9 +1539,9 @@
             </div>
             <div class="vol-body">
               <div style="margin-bottom:12px;">
-                <label style="font-size:0.82rem; cursor:pointer;">
+                <label style="font-size:0.82rem; cursor:pointer; color:#e05252; font-weight:600;">
                   <input type="checkbox" onchange="toggleDefaultAllFiles('${vol.key}', this.checked)">
-                  Acesso a todas as categorias
+                  Bloquear todo o volume
                 </label>
               </div>
               ${Object.entries(categories).map(([sectionName, files]) => `
@@ -1541,7 +1556,7 @@
                       ${files.map(f => `
                         <div class="file-item">
                           <input type="checkbox" id="dpf-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" data-ctx="default">
-                          <label for="dpf-${vol.key}-${f.file}">${f.title}</label>
+                          <label for="dpf-${vol.key}-${f.file}">${f.num != null ? `<span class="file-num">${f.num}</span>` : ''}${f.title}</label>
                         </div>
                       `).join('')}
                     </div>
@@ -1604,7 +1619,7 @@
       const defaultPerms = readDefaultPermConfig();
 
       if (defaultPerms.length === 0) {
-        msg.textContent = 'Configure ao menos uma permissão antes de aplicar.';
+        msg.textContent = 'Configure ao menos uma restrição antes de aplicar.';
         msg.className = 'msg err';
         return;
       }
@@ -1617,7 +1632,7 @@
       }
 
       const totalVols = defaultPerms.map(p => p.volume).join(', ');
-      const confirmMsg = `Isso vai sobrescrever as permissões de ${nonAdminUsers.length} usuário(s) com:\n\n${totalVols}\n\nDeseja continuar?`;
+      const confirmMsg = `Isso vai sobrescrever e APLICAR RESTRIÇÕES em ${nonAdminUsers.length} usuário(s). Volumes afetados:\n\n${totalVols || 'Nenhum bloqueio será adicionado (acesso total liberado)'}\n\nDeseja continuar?`;
       if (!confirm(confirmMsg)) return;
 
       btn.disabled = true;
@@ -1660,7 +1675,7 @@
 
       if (errors === 0) {
         progressLabel.textContent = `✅ Concluído — ${done} usuário(s) atualizados.`;
-        msg.textContent = `Permissões aplicadas com sucesso para ${done} usuário(s)!`;
+        msg.textContent = `Restrições aplicadas com sucesso para ${done} usuário(s)!`;
         msg.className = 'msg ok';
       } else {
         progressLabel.textContent = `⚠ Concluído com ${errors} erro(s). Verifique o console.`;

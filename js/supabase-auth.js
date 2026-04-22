@@ -186,16 +186,18 @@ async function isAdmin() {
 }
 
 function hasVolumeAccess(volume) {
-  if (!currentUser || !userPermissions) return false;
-  return userPermissions[volume] !== undefined;
+  if (!currentUser) return false;
+  if (!userPermissions) return true; // Empty blacklist = full access
+  return userPermissions[volume] !== 'all'; // Disabled if completely blocked
 }
 
 function hasFileAccess(volume, file) {
-  if (!currentUser || !userPermissions) return false;
+  if (!currentUser) return false;
+  if (!userPermissions) return true;
   const volPerm = userPermissions[volume];
-  if (volPerm === undefined) return false;
-  if (volPerm === 'all') return true;
-  return Array.isArray(volPerm) && volPerm.includes(file);
+  if (volPerm === undefined) return true; // Not in blacklist = full access
+  if (volPerm === 'all') return false; // Completely blocked
+  return Array.isArray(volPerm) && !volPerm.includes(file);
 }
 
 function getAccessConfig() {
