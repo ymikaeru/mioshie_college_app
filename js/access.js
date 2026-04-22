@@ -33,7 +33,8 @@ function isFullUser() {
 // Returns array of enabled volume keys ['mioshiec1', 'mioshiec2', ...]
 function getEnabledVolumes(config) {
   if (!config) return ['mioshiec1', 'mioshiec2', 'mioshiec3', 'mioshiec4'];
-  return ['mioshiec1', 'mioshiec2', 'mioshiec3', 'mioshiec4'].filter(v => config[v] != null);
+  // In blacklist mode, volume is disabled only if it is entirely blocked ('all')
+  return ['mioshiec1', 'mioshiec2', 'mioshiec3', 'mioshiec4'].filter(v => config[v] !== 'all');
 }
 
 // Remove the page gate, revealing content — only if user is authenticated
@@ -117,34 +118,39 @@ function initVolumeFilter(vol) {
 
   const volConfig = config[vol];
 
-  // Volume not in config at all → redirect to home
+  // Volume not in config at all → NO restrictions for this volume!
   if (volConfig == null) {
-    window.location.replace('../index.html');
-    return; // Redirecting — no reveal needed
-  }
-
-  // Always filter nav and hide stats footer (applies even when volConfig === 'all')
-  _applyNavFilter(getEnabledVolumes(config));
-  document.querySelectorAll('.volume-stats-footer').forEach(el => el.style.display = 'none');
-
-  // "all" → no topic card filtering needed
-  if (volConfig === 'all') { revealPage(); return; }
-
-  // Reject unexpected config shapes — treat as unauthorized
-  if (!Array.isArray(volConfig)) {
-    window.location.replace('../index.html');
+    _applyNavFilter(getEnabledVolumes(config));
+    document.querySelectorAll('.volume-stats-footer').forEach(el => el.style.display = 'none');
+    revealPage();
     return;
   }
 
-  // Array of allowed filenames
+  // Always filter nav and hide stats footer
+  _applyNavFilter(getEnabledVolumes(config));
+  document.querySelectorAll('.volume-stats-footer').forEach(el => el.style.display = 'none');
+
+  // "all" → The whole volume is BLOCKED
+  if (volConfig === 'all') { 
+    window.location.replace('../index.html');
+    return; 
+  }
+
+  // Reject unexpected config shapes — assume open
+  if (!Array.isArray(volConfig)) {
+    revealPage();
+    return;
+  }
+
+  // Array of BLOCKED filenames
   {
-    const allowed = new Set(volConfig);
+    const blocked = new Set(volConfig);
     document.querySelectorAll('a.topic-card').forEach(card => {
       const href = card.getAttribute('href') || '';
       const match = href.match(/file=([^&]+)/);
       if (match) {
         const file = decodeURIComponent(match[1]);
-        if (!allowed.has(file)) card.style.display = 'none';
+        if (blocked.has(file)) card.style.display = 'none';
       }
     });
     hideEmptySections();
