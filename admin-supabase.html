@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Admin — Mioshie College</title>
+  <title>Admin — Caminho da Felicidade</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="css/styles.min.css?v=17">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -231,22 +231,29 @@
     .topic-field-group textarea { resize: none; overflow-y: hidden; min-height: 80px; line-height: 1.6; flex:1; }
     
     /* Site-like immersive text fields */
-    .topic-readonly-text { padding: 10px; font-size: 0.9rem; color: var(--text-muted); line-height:1.6;}
-    .topic-readonly-text.html-content { font-family: var(--font-body), serif; font-size: 1rem; color: var(--text); }
-    
-    .topic-field-group textarea.html-content { 
-      font-family: var(--font-body), serif; 
-      font-size: 1rem; 
-      background: transparent; 
-      border: 1px solid transparent; 
-      transition: all 0.2s ease;
+    .topic-readonly-text { padding: 10px 0; font-size: 0.95rem; color: var(--text); line-height: 1.75; font-family: var(--font-body), serif; }
+    .topic-readonly-text.html-content { font-family: var(--font-body), serif; font-size: 0.95rem; color: var(--text); }
+
+    /* Contenteditable PT segment */
+    .seg-pt-wrap { display: flex; flex-direction: column; gap: 0; }
+    .seg-editable {
+      font-family: var(--font-body), serif; font-size: 0.95rem; line-height: 1.75;
+      color: var(--text); padding: 10px 12px; min-height: 48px;
+      border: 1px solid transparent; border-radius: 8px;
+      background: transparent; outline: none; cursor: text;
+      transition: border-color 0.15s, background 0.15s;
+      white-space: pre-wrap; word-break: break-word;
     }
-    .topic-field-group textarea.html-content:hover {
-      background: rgba(184, 134, 11, 0.03);
+    .seg-editable:hover { background: rgba(184,134,11,0.03); border-color: var(--border); }
+    .seg-editable:focus { background: var(--bg); border-color: var(--accent); box-shadow: 0 0 0 3px rgba(184,134,11,0.08); }
+
+    .topic-field-group textarea.html-content {
+      font-family: var(--font-body), serif; font-size: 1rem;
+      background: transparent; border: 1px solid transparent; transition: all 0.2s ease;
     }
+    .topic-field-group textarea.html-content:hover { background: rgba(184, 134, 11, 0.03); }
     .topic-field-group textarea.html-content:focus {
-      background: var(--surface);
-      border-color: rgba(184, 134, 11, 0.4);
+      background: var(--surface); border-color: rgba(184, 134, 11, 0.4);
       box-shadow: 0 4px 12px rgba(184, 134, 11, 0.05);
     }
     
@@ -423,7 +430,7 @@
   <header class="header">
     <a href="index.html" class="header__logo">
       <div class="logo-circle"><div class="logo-dot"></div></div>
-      Mioshie College
+      Caminho da Felicidade
     </a>
     <div class="header__nav">
       <a href="index.html"><span>⌂ Início</span></a>
@@ -448,6 +455,8 @@
             <div class="admin-tab active" onclick="switchTab('users')">Usuários</div>
             <div class="admin-tab" onclick="switchTab('analytics')">Analytics</div>
             <div class="admin-tab" onclick="switchTab('reports')">⚠ Relatórios <span class="tab-badge empty" id="reportsTabBadge">0</span></div>
+          </div><!-- /admin-tabs -->
+
           <!-- Users Tab -->
           <div class="tab-content active" id="tab-users">
 
@@ -718,11 +727,16 @@
       { key: 'mioshiec4', name: 'Volume 4 — Ensinamentos Complementares' }
     ];
 
-    const VOL_SHORT = { mioshiec1: 'V1', mioshiec2: 'V2', mioshiec3: 'V3', mioshiec4: 'V4' };
+    const VOL_SHORT = {
+      mioshiec1: 'V1', mioshiec2: 'V2', mioshiec3: 'V3', mioshiec4: 'V4',
+      shumeic1:  'V1', shumeic2:  'V2', shumeic3:  'V3', shumeic4:  'V4'
+    };
 
     let allUsers = [];
     let selectedUserId = null;
     let volumeCategories = {};
+
+    let _onlineRefreshInterval = null;
 
     window.switchTab = function(tab) {
       document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
@@ -730,7 +744,13 @@
       const tabIndex = { 'users': 0, 'analytics': 1, 'reports': 2 }[tab];
       document.querySelectorAll('.admin-tab')[tabIndex].classList.add('active');
       document.getElementById(`tab-${tab}`).classList.add('active');
-      if (tab === 'analytics') loadAnalytics();
+      if (tab === 'analytics') {
+        loadAnalytics();
+        if (_onlineRefreshInterval) clearInterval(_onlineRefreshInterval);
+        _onlineRefreshInterval = setInterval(loadOnlineUsers, 60000);
+      } else {
+        if (_onlineRefreshInterval) { clearInterval(_onlineRefreshInterval); _onlineRefreshInterval = null; }
+      }
       if (tab === 'reports') loadReports();
     };
 
@@ -872,8 +892,8 @@
         html += `
           <div class="report-verified-section" id="verifiedSection">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <button class="report-verified-toggle" id="verifiedToggle" onclick="toggleVerifiedSection()" style="margin:0;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="verifiedToggleIcon"><polyline points="6 9 12 15 18 9"/></svg>
+              <button class="report-verify-btn" id="verifiedToggle" onclick="toggleVerifiedSection()" style="gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="verifiedToggleIcon" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
                 Histórico de Verificados <span style="opacity:0.6; font-weight:400;">(${verified.length})</span>
               </button>
               <button class="report-verify-btn" style="background:rgba(255,59,48,0.1); color:#ff3b30; border-color:rgba(255,59,48,0.2); padding:6px 12px; font-size:0.75rem;" onclick="clearVerifiedHistory(this)" title="Apagar todos os relatórios verificados">
@@ -1051,15 +1071,17 @@
 
           let segmentsHtml = '';
           for (let i = 0; i < maxLen; i++) {
-             const jS = jaSegs[i] || '';
-             const pS = ptSegs[i] || '';
+             const jS = (jaSegs[i] || '').trim();
+             const pS = (ptSegs[i] || '').trim();
+             if (!jS && !pS) continue;
              segmentsHtml += `
-               <div class="topic-split-grid" style="border-top:1px solid rgba(184, 134, 11, 0.1); padding-top:16px; margin-top:16px;">
+               <div class="topic-split-grid" style="border-top:1px solid rgba(184,134,11,0.08); padding-top:16px; margin-top:16px;">
                  <div class="topic-split-col ja-col" style="padding:0 16px 16px 16px">
-                   <div class="topic-readonly-text html-content">${jS.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                   <div class="topic-readonly-text html-content">${jS}</div>
                  </div>
                  <div class="topic-split-col pt-col" style="padding:0 16px 16px 16px">
-                   <textarea class="editor-input-field html-content" data-path="${pathPrefix}-content_ptbr-seg" spellcheck="false" style="min-height:80px">${pS}</textarea>
+                   <div class="seg-editable editor-seg-content" contenteditable="true"
+                        data-path="${pathPrefix}-content_ptbr-seg" spellcheck="true">${pS.trim()}</div>
                  </div>
                </div>
              `;
@@ -1101,16 +1123,18 @@
 
       container.innerHTML = html;
 
-      // Auto-resize para textareas
-      const textareas = container.querySelectorAll('textarea');
-      textareas.forEach(t => {
-        t.style.height = 'auto';
-        t.style.height = (t.scrollHeight + 2) + 'px';
-        
-        t.addEventListener('input', function() {
-          this.style.height = 'auto';
-          this.style.height = (this.scrollHeight + 2) + 'px';
+      // Bloqueia Enter nos contenteditable de segmentos (br já separa segmentos)
+      container.querySelectorAll('.seg-editable').forEach(div => {
+        div.addEventListener('keydown', e => {
+          if (e.key === 'Enter') e.preventDefault();
         });
+      });
+
+      // Auto-resize textareas comuns (título etc.)
+      container.querySelectorAll('textarea').forEach(t => {
+        const autoResize = () => { t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; };
+        autoResize();
+        t.addEventListener('input', autoResize);
       });
     }
 
@@ -1139,13 +1163,13 @@
             _currentEditJson.themes[tIdx].topics[pIdx].title_ptbr = input.value;
           });
 
-          // Salvar conteúdos segmentados
+          // Salvar conteúdos segmentados (contenteditable divs)
           _currentEditJson.themes.forEach((theme, tIdx) => {
             if (!theme.topics) return;
             theme.topics.forEach((topic, pIdx) => {
-              const segs = document.querySelectorAll(`.editor-input-field[data-path="${tIdx}-${pIdx}-content_ptbr-seg"]`);
+              const segs = document.querySelectorAll(`.editor-seg-content[data-path="${tIdx}-${pIdx}-content_ptbr-seg"]`);
               if (segs.length > 0) {
-                const joined = Array.from(segs).map(s => s.value).join('<br/>\n');
+                const joined = Array.from(segs).map(s => s.innerHTML.trim()).join('<br/>\n');
                 topic.content_ptbr = joined;
               }
             });
@@ -1224,38 +1248,53 @@
 
     // ── Volume files for permission editor ────────────────────────
 
+    function parseSectionMapText(text) {
+      const jsonStr = text.match(/window\.SECTION_MAP\s*=\s*(\{[\s\S]*\})\s*;?\s*$/)?.[1];
+      if (!jsonStr) return false;
+      const sectionMap = JSON.parse(jsonStr);
+      for (const vol of VOLUMES) {
+        const volMap = sectionMap[vol.key] || {};
+        const categories = {};
+        let fileIndex = 0;
+        for (const [file, info] of Object.entries(volMap)) {
+          fileIndex++;
+          const isNewFormat = 'section' in info;
+          const sectionName = isNewFormat ? (info.section || 'Outros') : (info.pt || 'Outros');
+          const title = isNewFormat
+            ? (info.pt || file.replace(/\.html\.json$/, '').replace(/\.html$/, ''))
+            : file.replace(/\.html\.json$/, '').replace(/\.html$/, '');
+          if (!categories[sectionName]) categories[sectionName] = [];
+          categories[sectionName].push({ file, title, num: fileIndex });
+        }
+        volumeCategories[vol.key] = categories;
+      }
+      return true;
+    }
+
     async function loadVolumeFiles() {
+      // 1. Local site_data (always up-to-date with new format)
+      try {
+        const resp = await fetch('site_data/section_map.js');
+        if (resp.ok) {
+          const text = await resp.text();
+          if (parseSectionMapText(text)) return;
+        }
+      } catch (e) {
+        console.warn('[loadVolumeFiles] Local falhou:', e);
+      }
+
+      // 2. Supabase storage (may be older format)
       try {
         const { data: mapData } = await supabase.storage.from('teachings').download('section_map.js');
         if (mapData) {
           const text = await mapData.text();
-          const jsonStr = text.match(/window\.SECTION_MAP\s*=\s*(\{.*?\})\s*;?\s*$/s)?.[1];
-          if (jsonStr) {
-            const sectionMap = JSON.parse(jsonStr);
-            for (const vol of VOLUMES) {
-              const volMap = sectionMap[vol.key] || {};
-              const categories = {};
-              let fileIndex = 0;
-              for (const [file, info] of Object.entries(volMap)) {
-                fileIndex++;
-                // Backward compat: old format had info.pt = section name (no info.section field)
-                // New format: info.section = category, info.pt = individual topic title
-                const isNewFormat = 'section' in info;
-                const sectionName = isNewFormat ? (info.section || 'Outros') : (info.pt || 'Outros');
-                const title = isNewFormat
-                  ? (info.pt || file.replace('.html.json', ''))
-                  : file.replace('.html.json', '');
-                if (!categories[sectionName]) categories[sectionName] = [];
-                categories[sectionName].push({ file, title, num: fileIndex });
-              }
-              volumeCategories[vol.key] = categories;
-            }
-          }
+          if (parseSectionMapText(text)) return;
         }
       } catch (e) {
-        console.warn('Failed to load section_map:', e);
+        console.warn('[loadVolumeFiles] Supabase storage falhou:', e);
       }
 
+      // 3. Last resort: list files (shows filenames only)
       for (const vol of VOLUMES) {
         if (!volumeCategories[vol.key]) {
           try {
@@ -1522,6 +1561,47 @@
       chevron.classList.toggle('open', !isOpen);
     };
 
+    const DEFAULT_PERM_KEY = 'mioshie_admin_default_perms';
+
+    window.saveDefaultPermState = function() {
+      const panel = document.getElementById('default-perm-volumes');
+      if (!panel) return;
+      const state = {};
+      panel.querySelectorAll(':scope > .vol-block').forEach(volBlock => {
+        const volKey = volBlock.dataset.vol;
+        const allCb = volBlock.querySelector(':scope > .vol-body > div:first-child input[type=checkbox]');
+        const files = Array.from(volBlock.querySelectorAll('.file-list input[type=checkbox]:checked')).map(cb => cb.value);
+        state[volKey] = { blockAll: allCb?.checked || false, files };
+      });
+      localStorage.setItem(DEFAULT_PERM_KEY, JSON.stringify(state));
+    };
+
+    function restoreDefaultPermState() {
+      const saved = localStorage.getItem(DEFAULT_PERM_KEY);
+      if (!saved) return;
+      try {
+        const state = JSON.parse(saved);
+        const panel = document.getElementById('default-perm-volumes');
+        if (!panel) return;
+        Object.entries(state).forEach(([volKey, config]) => {
+          const volBlock = panel.querySelector(`.vol-block[data-vol="${volKey}"]`);
+          if (!volBlock) return;
+          if (config.blockAll) {
+            const allCb = volBlock.querySelector(':scope > .vol-body > div:first-child input[type=checkbox]');
+            if (allCb) allCb.checked = true;
+            volBlock.querySelectorAll('.file-list input[type=checkbox]').forEach(cb => { cb.checked = true; });
+          } else if (config.files?.length > 0) {
+            config.files.forEach(fileVal => {
+              const cb = panel.querySelector(`.file-list input[data-vol="${volKey}"][value="${fileVal}"]`);
+              if (cb) cb.checked = true;
+            });
+          }
+          // Sync section and volume header checkboxes
+          volBlock.querySelectorAll('.file-list input[type=checkbox]').forEach(cb => updateParentChecks(cb));
+        });
+      } catch(e) { console.error('[restoreDefaultPerm]', e); }
+    }
+
     function renderDefaultPermVolumes() {
       const volumesDiv = document.getElementById('default-perm-volumes');
       if (!volumesDiv) return;
@@ -1533,21 +1613,21 @@
         return `
           <div class="vol-block" data-vol="${vol.key}" data-context="default">
             <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')">
-              <input type="checkbox" onchange="toggleDefaultVolume('${vol.key}', this.checked)">
+              <input type="checkbox" onchange="toggleDefaultVolume('${vol.key}', this.checked); saveDefaultPermState()">
               <span class="vol-title">${vol.name}</span>
               <span style="font-size:0.75rem; color:var(--text-muted);">0/${totalFiles}</span>
             </div>
             <div class="vol-body">
               <div style="margin-bottom:12px;">
                 <label style="font-size:0.82rem; cursor:pointer; color:#e05252; font-weight:600;">
-                  <input type="checkbox" onchange="toggleDefaultAllFiles('${vol.key}', this.checked)">
+                  <input type="checkbox" onchange="toggleDefaultAllFiles('${vol.key}', this.checked); saveDefaultPermState()">
                   Bloquear todo o volume
                 </label>
               </div>
               ${Object.entries(categories).map(([sectionName, files]) => `
                 <div class="vol-block" style="margin-bottom:8px;">
                   <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')" style="padding:8px 12px;">
-                    <input type="checkbox" onchange="toggleDefaultSection('${vol.key}', this.checked, this)">
+                    <input type="checkbox" onchange="toggleDefaultSection('${vol.key}', this.checked, this); saveDefaultPermState(); updateParentChecks(this)">
                     <span class="vol-title" style="font-size:0.85rem;">${sectionName}</span>
                     <span style="font-size:0.7rem; color:var(--text-muted);">${files.length} itens</span>
                   </div>
@@ -1555,7 +1635,7 @@
                     <div class="file-list">
                       ${files.map(f => `
                         <div class="file-item">
-                          <input type="checkbox" id="dpf-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" data-ctx="default">
+                          <input type="checkbox" id="dpf-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" data-ctx="default" onchange="saveDefaultPermState(); updateParentChecks(this)">
                           <label for="dpf-${vol.key}-${f.file}">${f.num != null ? `<span class="file-num">${f.num}</span>` : ''}${f.title}</label>
                         </div>
                       `).join('')}
@@ -1567,6 +1647,8 @@
           </div>
         `;
       }).join('');
+
+      restoreDefaultPermState();
     }
 
     window.toggleDefaultVolume = function(vol, enabled) {
@@ -1589,13 +1671,30 @@
       volBlock.querySelectorAll('.file-list input[type=checkbox]').forEach(cb => { cb.checked = checked; });
     };
 
+    window.updateParentChecks = function(el) {
+      // Sync section header checkbox
+      const sectionBlock = el.closest('.vol-block:not([data-vol])');
+      if (sectionBlock) {
+        const sectionHeaderCb = sectionBlock.querySelector(':scope > .vol-header input[type=checkbox]');
+        const fileCbs = sectionBlock.querySelectorAll('.file-list input[type=checkbox]');
+        if (sectionHeaderCb && fileCbs.length > 0)
+          sectionHeaderCb.checked = Array.from(fileCbs).every(cb => cb.checked);
+      }
+      // Sync volume header checkbox
+      const volBlock = el.closest('.vol-block[data-vol]');
+      if (volBlock) {
+        const volHeaderCb = volBlock.querySelector(':scope > .vol-header input[type=checkbox]');
+        const sectionCbs = volBlock.querySelectorAll(':scope > .vol-body > .vol-block > .vol-header input[type=checkbox]');
+        if (volHeaderCb && sectionCbs.length > 0)
+          volHeaderCb.checked = Array.from(sectionCbs).every(cb => cb.checked);
+      }
+    };
+
     function readDefaultPermConfig() {
       const panel = document.getElementById('default-perm-volumes');
       const perms = [];
       panel?.querySelectorAll(':scope > .vol-block').forEach(volBlock => {
         const volKey = volBlock.dataset.vol;
-        const volCheckbox = volBlock.querySelector(':scope > .vol-header input[type=checkbox]');
-        if (!volCheckbox?.checked) return;
 
         const allCheckbox = volBlock.querySelector(':scope > .vol-body > div:first-child input[type=checkbox]');
         if (allCheckbox?.checked) {
@@ -1910,7 +2009,6 @@
       const now = Date.now();
       const cutoff60 = new Date(now - 60 * 60000).toISOString();
 
-      // Consulta ambas as fontes em paralelo
       const [profilesRes, logsRes] = await Promise.all([
         supabase
           .from('user_profiles')
@@ -1920,47 +2018,59 @@
           .order('last_seen_at', { ascending: false }),
         supabase
           .from('access_logs')
-          .select('user_id, created_at')
+          .select('user_id, created_at, volume, file')
           .gte('created_at', cutoff60)
           .order('created_at', { ascending: false })
       ]);
 
-      // Mapa unificado: userId → { name, lastSeen }
+      // userId → { name, lastSeen, lastVol, lastFile }
       const activityMap = new Map();
 
       for (const p of (profilesRes.data || [])) {
-        activityMap.set(p.id, { name: p.display_name, lastSeen: new Date(p.last_seen_at) });
+        activityMap.set(p.id, { name: p.display_name, lastSeen: new Date(p.last_seen_at), lastVol: null, lastFile: null });
       }
 
-      // Agrupa access_logs por usuário (mais recente)
+      // Agrupa logs: guarda o mais recente por usuário
       const logLatest = new Map();
       for (const l of (logsRes.data || [])) {
         const t = new Date(l.created_at);
-        if (!logLatest.has(l.user_id) || t > logLatest.get(l.user_id)) logLatest.set(l.user_id, t);
+        if (!logLatest.has(l.user_id) || t > logLatest.get(l.user_id).t)
+          logLatest.set(l.user_id, { t, volume: l.volume, file: l.file });
       }
 
-      // Busca nomes de usuários que estão nos logs mas não no heartbeat
+      // Busca nomes de usuários só nos logs
       const unknownIds = [...logLatest.keys()].filter(uid => !activityMap.has(uid));
       if (unknownIds.length > 0) {
         const { data: profiles } = await supabase
           .from('user_profiles').select('id, display_name').in('id', unknownIds);
         for (const p of (profiles || [])) {
-          activityMap.set(p.id, { name: p.display_name, lastSeen: logLatest.get(p.id) });
+          const log = logLatest.get(p.id);
+          activityMap.set(p.id, { name: p.display_name, lastSeen: log.t, lastVol: log.volume, lastFile: log.file });
         }
       }
 
-      // Usa o timestamp mais recente entre heartbeat e access_log
-      for (const [uid, logTime] of logLatest) {
+      // Usa timestamp mais recente e registra última atividade
+      for (const [uid, log] of logLatest) {
         const entry = activityMap.get(uid);
-        if (entry && logTime > entry.lastSeen) entry.lastSeen = logTime;
+        if (!entry) continue;
+        if (log.t > entry.lastSeen) entry.lastSeen = log.t;
+        entry.lastVol = log.volume;
+        entry.lastFile = log.file;
       }
+
+      const volLabel = v => VOL_SHORT[v] || v || '';
+      const fileLabel = f => f ? f.replace(/\.html\.json$/, '').replace(/\.html$/, '') : '';
 
       // Categoriza por recência
       const active = [], recent = [], idle = [];
-      for (const [, { name, lastSeen }] of activityMap) {
-        const diff = (now - lastSeen.getTime()) / 60000;
-        const e = { name: name || 'Sem nome', minutesAgo: Math.round(diff) };
-        if (diff <= 5)       active.push({ ...e, status: 'active' });
+      for (const [, u] of activityMap) {
+        const diff = (now - u.lastSeen.getTime()) / 60000;
+        const e = {
+          name: u.name || 'Sem nome',
+          minutesAgo: Math.round(diff),
+          activity: u.lastVol ? `${volLabel(u.lastVol)} · ${fileLabel(u.lastFile)}` : null
+        };
+        if (diff <= 10)      active.push({ ...e, status: 'active' });
         else if (diff <= 30) recent.push({ ...e, status: 'recent' });
         else                 idle.push({ ...e, status: 'idle' });
       }
@@ -1974,10 +2084,13 @@
       }
 
       document.getElementById('online-list').innerHTML = all.map(u => `
-        <div class="online-user">
-          <div class="online-user-dot ${u.status}"></div>
-          <span class="online-user-name">${u.name}</span>
-          <span class="online-user-time">${u.status === 'active' ? 'agora' : u.minutesAgo + ' min'}</span>
+        <div class="online-user" style="flex-direction:column; align-items:flex-start; gap:2px; padding:8px 14px;">
+          <div style="display:flex; align-items:center; gap:6px; width:100%;">
+            <div class="online-user-dot ${u.status}"></div>
+            <span class="online-user-name">${u.name}</span>
+            <span class="online-user-time" style="margin-left:auto;">${u.status === 'active' ? 'agora' : u.minutesAgo + ' min atrás'}</span>
+          </div>
+          ${u.activity ? `<span style="font-size:0.7rem; color:var(--text-muted); padding-left:12px;">${u.activity}</span>` : ''}
         </div>`).join('');
     }
 
