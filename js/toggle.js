@@ -8,7 +8,7 @@
 // --- Shared Translation Strings (used by nav.js, theme.js, language.js) ---
 const MENU_TEXTS = {
   pt: {
-    title: 'Mioshie College',
+    title: 'Caminho da Felicidade',
     close: 'Fechar menu',
     navigation: 'Navegação',
     actions: 'AÇÕES',

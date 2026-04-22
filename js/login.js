@@ -20,6 +20,20 @@ async function checkSupabaseAuth() {
 
   supabaseSession = session;
   await loadUserPermissions(session.user.id);
+
+  // Same cross-user guard as login flow: if the browser still has data tagged
+  // with a different user_id, wipe it before any sync happens.
+  const storedUid = localStorage.getItem('mioshie_user_id');
+  if (storedUid && storedUid !== session.user.id) {
+    localStorage.removeItem('userHighlights');
+    localStorage.removeItem('readHistory');
+    localStorage.removeItem('savedFavorites');
+    localStorage.removeItem('highlightDeletedKeys');
+    localStorage.removeItem('favDeletedKeys');
+    localStorage.removeItem('mioshieSyncQueue');
+  }
+  localStorage.setItem('mioshie_user_id', session.user.id);
+
   return true;
 }
 
@@ -68,7 +82,7 @@ function showLoginOverlay() {
   overlay.style.zIndex = '5000';
   overlay.innerHTML = `
     <div class="login-card">
-      <h2>Mioshie College</h2>
+      <h2>Caminho da Felicidade</h2>
       <p style="color: var(--text-muted); margin-bottom: 24px;">Insira suas credenciais para acessar</p>
       <input type="email" id="login-email" class="login-input" placeholder="Email" autocomplete="email" style="margin-bottom:12px;">
       <input type="password" id="login-pass" class="login-input" placeholder="Senha" autocomplete="current-password">
@@ -103,13 +117,35 @@ function showLoginOverlay() {
       supabaseSession = data.session;
       await loadUserPermissions(data.user.id);
 
+      // Prevent cross-user contamination: if localStorage holds data from a
+      // different user (session crashed, shared device, expired token), wipe
+      // it BEFORE syncing so we don't push foreign highlights to this cloud.
+      const storedUid = localStorage.getItem('mioshie_user_id');
+      if (storedUid && storedUid !== data.user.id) {
+        localStorage.removeItem('userHighlights');
+        localStorage.removeItem('readHistory');
+        localStorage.removeItem('savedFavorites');
+        localStorage.removeItem('highlightDeletedKeys');
+        localStorage.removeItem('favDeletedKeys');
+        localStorage.removeItem('mioshieSyncQueue');
+      }
+      localStorage.setItem('mioshie_user_id', data.user.id);
+
       if (window._cloudSync) {
         try {
           await window._cloudSync.pullCloudToLocal();
           await window._cloudSync.syncLocalStorageToCloud();
           if (typeof renderFavorites === 'function') renderFavorites();
           if (typeof renderHistory === 'function') renderHistory();
-        } catch (e) { console.warn('Cloud sync failed:', e); }
+        } catch (e) {
+          console.warn('Cloud sync failed:', e);
+          // Non-fatal: login proceeds with local data, but warn the user so
+          // they know highlights/history may be stale until connectivity returns
+          errorMsg.textContent = 'Logado, mas sincronização com a nuvem falhou. Seus destaques podem estar desatualizados.';
+          errorMsg.style.color = '#c88a00';
+          errorMsg.style.display = 'block';
+          setTimeout(() => { errorMsg.style.display = 'none'; errorMsg.style.color = ''; }, 4000);
+        }
       }
 
       overlay.remove();
@@ -152,6 +188,7 @@ async function logout() {
   isAdminRole = false;
   localStorage.removeItem('mioshie_auth');
   localStorage.removeItem('mioshie_access_config');
+  localStorage.removeItem('mioshie_user_id');
   // Clear user-specific data to prevent leakage to next logged-in user
   localStorage.removeItem('userHighlights');
   localStorage.removeItem('readHistory');

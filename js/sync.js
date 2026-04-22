@@ -34,6 +34,7 @@ export async function loadReadingPositions() {
   const { data } = await supabase
     .from('reading_positions')
     .select('volume, file, topic_index, total_topics, progress_pct, updated_at')
+    .eq('user_id', session.user.id)
     .order('updated_at', { ascending: false })
     .limit(100);
 
@@ -97,6 +98,7 @@ export async function loadFavorites() {
   const { data } = await supabase
     .from('synced_favorites')
     .select('volume, file, topic_index, topic_title, snippet, total_topics, created_at')
+    .eq('user_id', session.user.id)
     .order('created_at', { ascending: false })
     .limit(500);
 
@@ -375,6 +377,10 @@ export async function removeHighlight(volume, file, topicId, startChar, endChar)
       .eq('end_char', endChar);
     if (error2) {
       console.error('[sync] removeHighlight fallback also failed:', error2.message);
+      // Enfileira para tentar de novo quando o RLS/conexão permitir
+      if (window._syncQueue) {
+        await window._syncQueue.queueRemoveHighlight({ volume, file, topicId, startChar, endChar });
+      }
     }
   }
 }
@@ -386,6 +392,7 @@ export async function loadAllHighlights() {
   const { data } = await supabase
     .from('user_highlights')
     .select('volume, file, topic_id, topic_index, topic_title, color, comment, text, start_char, end_char, updated_at')
+    .eq('user_id', session.user.id)
     .order('updated_at', { ascending: false })
     .limit(1000);
 

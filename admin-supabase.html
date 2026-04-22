@@ -454,6 +454,7 @@
           <div class="admin-tabs">
             <div class="admin-tab active" onclick="switchTab('users')">Usuários</div>
             <div class="admin-tab" onclick="switchTab('analytics')">Analytics</div>
+            <div class="admin-tab" onclick="switchTab('destaques')">Destaques</div>
             <div class="admin-tab" onclick="switchTab('reports')">⚠ Relatórios <span class="tab-badge empty" id="reportsTabBadge">0</span></div>
           </div><!-- /admin-tabs -->
 
@@ -660,6 +661,27 @@
 
           </div>
 
+          <!-- Destaques Tab -->
+          <div class="tab-content" id="tab-destaques">
+            <div style="margin-bottom:24px;">
+              <h2 style="margin:0 0 4px; font-size:1rem; font-weight:600; color:var(--accent); letter-spacing:1px; text-transform:uppercase;">Destaques dos Usuários</h2>
+              <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">Veja todos os trechos destacados por um usuário.</p>
+            </div>
+            <div style="display:flex; gap:10px; margin-bottom:12px;">
+              <input type="text" id="hl-user-search" placeholder="Buscar usuário por nome ou email..."
+                     oninput="filterHlUsers()"
+                     style="flex:1; padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:0.9rem; box-sizing:border-box;">
+            </div>
+            <div id="hl-user-list" style="display:flex; flex-direction:column; gap:6px; max-height:260px; overflow-y:auto; margin-bottom:24px;"></div>
+            <div id="hl-results-header" style="display:none; align-items:center; margin-bottom:16px; gap:10px;">
+              <div style="flex:1;">
+                <span style="font-size:0.9rem; font-weight:600;" id="hl-selected-name"></span>
+                <span style="font-size:0.8rem; color:var(--text-muted); margin-left:8px;" id="hl-total-count"></span>
+              </div>
+            </div>
+            <div id="hl-results-container"></div>
+          </div>
+
           <!-- Reports Tab -->
           <div class="tab-content" id="tab-reports">
             <div style="margin-bottom:24px;">
@@ -738,10 +760,137 @@
 
     let _onlineRefreshInterval = null;
 
+    // ── Helpers ───────────────────────────────────────────────────
+    function _escHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── Destaques Tab ─────────────────────────────────────────────
+    function initHlTab() {
+      const q = (document.getElementById('hl-user-search')?.value || '').toLowerCase();
+      const filtered = q
+        ? allUsers.filter(u => (u.display_name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q))
+        : allUsers;
+      renderHlUserList(filtered);
+    }
+
+    window.filterHlUsers = function() {
+      const q = document.getElementById('hl-user-search').value.toLowerCase();
+      const filtered = allUsers.filter(u =>
+        (u.display_name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+      );
+      renderHlUserList(filtered);
+    };
+
+    function renderHlUserList(users) {
+      const container = document.getElementById('hl-user-list');
+      if (!users || users.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; padding:8px 0;">Nenhum usuário encontrado.</div>';
+        return;
+      }
+      container.innerHTML = users.map(u => `
+        <div class="user-row" onclick="loadUserHighlights('${u.id}', '${_escHtml(u.display_name || u.email || 'Usuário')}')">
+          <div class="user-avatar">${(u.display_name || u.email || '?')[0].toUpperCase()}</div>
+          <div class="user-info">
+            <div class="user-name">${_escHtml(u.display_name || '')}</div>
+            <div class="user-email">${_escHtml(u.email || '')}</div>
+          </div>
+          <div class="user-meta" style="flex-shrink:0; font-size:0.75rem; color:var(--text-muted);">${_escHtml(u.role || 'user')}</div>
+        </div>
+      `).join('');
+    }
+
+    function getFileTitle(volume, file) {
+      const cats = volumeCategories?.[volume];
+      if (cats) {
+        for (const arr of Object.values(cats)) {
+          const hit = arr.find(x => x.file === file);
+          if (hit?.title) return hit.title;
+        }
+      }
+      return file.replace(/\.html\.json$/, '').replace(/\.json$/, '').replace(/\.html$/, '');
+    }
+
+    window.loadUserHighlights = async function(userId, userName) {
+      const container = document.getElementById('hl-results-container');
+      const header = document.getElementById('hl-results-header');
+      document.getElementById('hl-selected-name').textContent = userName;
+      document.getElementById('hl-total-count').textContent = '';
+      header.style.display = 'flex';
+      container.innerHTML = '<div class="loading">Carregando destaques...</div>';
+
+      // Ensure the volume→file→title map is loaded before rendering
+      if (!volumeCategories || Object.keys(volumeCategories).length === 0) {
+        try { await loadVolumeFiles(); } catch (e) { console.warn('loadVolumeFiles falhou:', e); }
+      }
+
+      const { data, error } = await supabase
+        .rpc('get_user_highlights_for_admin', { target_user_id: userId });
+
+      if (error) {
+        container.innerHTML = `<div class="msg err">Erro ao carregar: ${error.message}</div>`;
+        return;
+      }
+
+      const highlights = data || [];
+      document.getElementById('hl-total-count').textContent = `${highlights.length} destaque${highlights.length !== 1 ? 's' : ''}`;
+
+      if (highlights.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-muted); font-size:0.9rem; padding:20px 0;">Nenhum destaque encontrado para este usuário.</div>';
+        return;
+      }
+
+      const colorMap = {
+        yellow: '#fff3a1', green: '#a8e6cf', blue: '#a0c4ff',
+        pink: '#ffb3c6', purple: '#d4a5f5', orange: '#ffd6a5'
+      };
+
+      // Agrupar por volume + arquivo
+      const grouped = new Map();
+      highlights.forEach(h => {
+        const key = `${h.volume}__${h.file}`;
+        if (!grouped.has(key)) grouped.set(key, { volume: h.volume, file: h.file, items: [] });
+        grouped.get(key).items.push(h);
+      });
+
+      let html = '';
+      for (const [, group] of grouped.entries()) {
+        const volLabel = VOL_SHORT[group.volume] || group.volume;
+        const fileLabel = getFileTitle(group.volume, group.file);
+        html += `
+          <div style="margin-bottom:28px;">
+            <div style="font-weight:600; color:var(--accent); font-size:0.88rem; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;" title="${_escHtml(group.file)}">
+              <span style="background:rgba(184,134,11,0.12); border-radius:6px; padding:2px 8px; font-size:0.72rem; font-weight:700;">${_escHtml(volLabel)}</span>
+              ${_escHtml(fileLabel)}
+              <span style="font-weight:400; color:var(--text-muted); font-size:0.78rem; margin-left:auto;">${group.items.length} destaque${group.items.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              ${group.items.map(h => {
+                const bg = colorMap[h.color] || '#fff3a1';
+                const date = new Date(h.updated_at).toLocaleDateString('pt-BR');
+                return `
+                  <div style="border-left:4px solid ${bg}; padding:10px 14px; background:var(--surface); border-radius:0 8px 8px 0; border:1px solid var(--border); border-left-color:${bg};">
+                    ${h.topic_title ? `<div style="font-size:0.73rem; color:var(--text-muted); margin-bottom:4px; font-family:'Outfit',sans-serif;">${_escHtml(h.topic_title)}</div>` : ''}
+                    <div style="font-size:0.95rem; line-height:1.6; color:var(--text);">${_escHtml(h.text)}</div>
+                    ${h.comment ? `<div style="margin-top:6px; font-size:0.82rem; color:var(--text-muted); font-style:italic; font-family:'Outfit',sans-serif;">📝 ${_escHtml(h.comment)}</div>` : ''}
+                    <div style="margin-top:6px; font-size:0.7rem; color:var(--text-muted); font-family:'Outfit',sans-serif;">${date}</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    };
+
     window.switchTab = function(tab) {
       document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      const tabIndex = { 'users': 0, 'analytics': 1, 'reports': 2 }[tab];
+      const tabIndex = { 'users': 0, 'analytics': 1, 'destaques': 2, 'reports': 3 }[tab];
       document.querySelectorAll('.admin-tab')[tabIndex].classList.add('active');
       document.getElementById(`tab-${tab}`).classList.add('active');
       if (tab === 'analytics') {
@@ -752,6 +901,7 @@
         if (_onlineRefreshInterval) { clearInterval(_onlineRefreshInterval); _onlineRefreshInterval = null; }
       }
       if (tab === 'reports') loadReports();
+      if (tab === 'destaques') initHlTab();
     };
 
     let _reportsLoaded = false;
@@ -777,6 +927,11 @@
       }
 
       _allReports = data || [];
+
+      if (!volumeCategories || Object.keys(volumeCategories).length === 0) {
+        try { await loadVolumeFiles(); } catch (e) { console.warn('loadVolumeFiles falhou:', e); }
+      }
+
       _renderReports();
     }
 
@@ -825,7 +980,7 @@
         const date = new Date(r.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
         const escapedText = r.selected_text?.replace(/</g, '&lt;').replace(/>/g, '&gt;') || '';
         const escapedDesc = r.description?.replace(/</g, '&lt;').replace(/>/g, '&gt;') || '';
-        const fileLabel = r.file?.replace('.html.json','') || '—';
+        const fileLabel = r.file ? getFileTitle(r.vol, r.file) : '—';
         const langLabel = r.lang === 'ja' ? '🇯🇵 Japonês' : '🇧🇷 Português';
 
         let userName = 'Usuário Desconhecido';
@@ -847,7 +1002,7 @@
           <div class="report-card" id="report-card-${r.id}">
             <div class="report-header">
               <span class="report-vol">${VOL_SHORT[r.vol] || r.vol}</span>
-              <span class="report-file">${fileLabel}</span>
+              <span class="report-file" title="${_escHtml(r.file || '')}">${_escHtml(fileLabel)}</span>
               <span class="report-lang">${langLabel}</span>
               <span class="report-user">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
@@ -954,8 +1109,24 @@
     };
 
     window.clearVerifiedHistory = async function(btnEl) {
-      if (!confirm('Tem certeza? Isso apagará permanentemente todos os reportes verificados do banco de dados.')) return;
-      
+      // First, count how many records will be affected so the admin knows exactly what they're deleting
+      const { count, error: countErr } = await supabase
+        .from('translation_reports')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'verified');
+
+      if (countErr) {
+        alert('Erro ao verificar quantidade de relatórios: ' + countErr.message);
+        return;
+      }
+
+      if (!count || count === 0) {
+        alert('Não há relatórios verificados para apagar.');
+        return;
+      }
+
+      if (!confirm(`Tem certeza? Isso apagará PERMANENTEMENTE ${count} relatório(s) verificado(s) do banco de dados.\n\nEsta ação não pode ser desfeita.`)) return;
+
       const originalText = btnEl.innerHTML;
       btnEl.disabled = true;
       btnEl.innerHTML = 'Limpando...';
@@ -1019,6 +1190,7 @@
       try {
         const { data, error } = await supabase.storage.from('teachings').download(`${vol}/${_currentEditFile}`);
         if (error) throw error;
+        if (!data) throw new Error('Arquivo vazio ou indisponível no storage');
 
         const text = await data.text();
         
@@ -1092,30 +1264,7 @@
               <div class="topic-edit-header">
                 <span>Tópico ${pIdx + 1}</span>
               </div>
-              
-              <!-- Cabeçalho (Títulos) -->
-              <div class="topic-split-grid">
-                <div class="topic-split-col ja-col" style="padding-bottom:0">
-                  <div class="topic-field-group">
-                    <label>Título (Japonês original)</label>
-                    <div class="topic-readonly-text" style="font-weight:600; padding:10px 12px; background:rgba(184, 134, 11, 0.03); border-radius:6px; border:1px solid rgba(184, 134, 11, 0.15); color: var(--accent);">${jaTitle}</div>
-                  </div>
-                </div>
-                <div class="topic-split-col pt-col" style="padding-bottom:0">
-                  <div class="topic-field-group" style="flex:none">
-                    <label>Título (Tradução PT-BR)</label>
-                    <input type="text" class="editor-input-field" data-path="${pathPrefix}-title_ptbr" value="${ptTitle}">
-                  </div>
-                </div>
-              </div>
-
-              <!-- Segmentos (Parágrafos) -->
-              <div style="padding:0 16px 16px 16px; margin-top:8px;">
-                 <div style="font-size:0.75rem; font-weight:bold; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Conteúdo (Segmentado)</div>
-              </div>
-              
               ${segmentsHtml}
-
             </div>
           `;
         });
@@ -1124,9 +1273,15 @@
       container.innerHTML = html;
 
       // Bloqueia Enter nos contenteditable de segmentos (br já separa segmentos)
+      // Bloqueia paste com HTML para evitar estilos inline indesejados
       container.querySelectorAll('.seg-editable').forEach(div => {
         div.addEventListener('keydown', e => {
           if (e.key === 'Enter') e.preventDefault();
+        });
+        div.addEventListener('paste', e => {
+          e.preventDefault();
+          const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+          document.execCommand('insertText', false, text);
         });
       });
 
@@ -1136,6 +1291,23 @@
         autoResize();
         t.addEventListener('input', autoResize);
       });
+    }
+
+    function _sanitizeSegHtml(html) {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      tmp.querySelectorAll('*').forEach(el => {
+        el.removeAttribute('style');
+        el.removeAttribute('class');
+        el.removeAttribute('id');
+      });
+      // Desembrulha <span>s — inseridos pelo browser para aplicar estilos inline
+      tmp.querySelectorAll('span').forEach(span => {
+        const parent = span.parentNode;
+        while (span.firstChild) parent.insertBefore(span.firstChild, span);
+        parent.removeChild(span);
+      });
+      return tmp.innerHTML.trim();
     }
 
     window.closeEditor = function() {
@@ -1169,7 +1341,7 @@
             theme.topics.forEach((topic, pIdx) => {
               const segs = document.querySelectorAll(`.editor-seg-content[data-path="${tIdx}-${pIdx}-content_ptbr-seg"]`);
               if (segs.length > 0) {
-                const joined = Array.from(segs).map(s => s.innerHTML.trim()).join('<br/>\n');
+                const joined = Array.from(segs).map(s => _sanitizeSegHtml(s.innerHTML)).join('<br/>\n');
                 topic.content_ptbr = joined;
               }
             });
@@ -1242,8 +1414,15 @@
       }
 
       loadUsers();
-      await loadVolumeFiles();
-      renderDefaultPermVolumes();
+      const ok = await loadVolumeFiles();
+      if (!ok) {
+        const volumesDiv = document.getElementById('default-perm-volumes');
+        if (volumesDiv) {
+          volumesDiv.innerHTML = `<div class="msg err" style="display:block;">⚠ Falha ao carregar lista de volumes. Verifique sua conexão e <a href="#" onclick="location.reload(); return false;" style="color:inherit; text-decoration:underline;">recarregue a página</a>.</div>`;
+        }
+      } else {
+        renderDefaultPermVolumes();
+      }
     }
 
     // ── Volume files for permission editor ────────────────────────
@@ -1251,7 +1430,13 @@
     function parseSectionMapText(text) {
       const jsonStr = text.match(/window\.SECTION_MAP\s*=\s*(\{[\s\S]*\})\s*;?\s*$/)?.[1];
       if (!jsonStr) return false;
-      const sectionMap = JSON.parse(jsonStr);
+      let sectionMap;
+      try {
+        sectionMap = JSON.parse(jsonStr);
+      } catch (e) {
+        console.warn('[parseSectionMapText] JSON inválido:', e);
+        return false;
+      }
       for (const vol of VOLUMES) {
         const volMap = sectionMap[vol.key] || {};
         const categories = {};
@@ -1277,7 +1462,7 @@
         const resp = await fetch('site_data/section_map.js');
         if (resp.ok) {
           const text = await resp.text();
-          if (parseSectionMapText(text)) return;
+          if (parseSectionMapText(text)) return true;
         }
       } catch (e) {
         console.warn('[loadVolumeFiles] Local falhou:', e);
@@ -1288,25 +1473,35 @@
         const { data: mapData } = await supabase.storage.from('teachings').download('section_map.js');
         if (mapData) {
           const text = await mapData.text();
-          if (parseSectionMapText(text)) return;
+          if (parseSectionMapText(text)) return true;
         }
       } catch (e) {
         console.warn('[loadVolumeFiles] Supabase storage falhou:', e);
       }
 
       // 3. Last resort: list files (shows filenames only)
+      let anyLoaded = false;
       for (const vol of VOLUMES) {
         if (!volumeCategories[vol.key]) {
           try {
             const { data } = await supabase.storage.from('teachings').list(`${vol.key}/`);
-            volumeCategories[vol.key] = {
-              'Todos': (data || []).map(f => ({ file: f.name, title: f.name.replace('.html.json', '') }))
-            };
+            const files = (data || []).map(f => ({ file: f.name, title: f.name.replace('.html.json', '') }));
+            volumeCategories[vol.key] = files.length > 0 ? { 'Todos': files } : {};
+            if (files.length > 0) anyLoaded = true;
           } catch {
             volumeCategories[vol.key] = {};
           }
+        } else {
+          anyLoaded = true;
         }
       }
+
+      if (!anyLoaded) {
+        console.error('[loadVolumeFiles] Todas as fontes falharam — estado vazio.');
+        // Signal to callers that data is unavailable
+        return false;
+      }
+      return true;
     }
 
     // ── User list with email ──────────────────────────────────────
@@ -1423,9 +1618,9 @@
 
       if (positions && positions.length > 0) {
         html += `<h4 style="margin:16px 0 8px; font-size:0.85rem;">Progresso de Leitura</h4>`;
-        html += `<table class="data-table"><thead><tr><th>Volume</th><th>Arquivo</th><th>Progresso</th></tr></thead><tbody>`;
+        html += `<table class="data-table"><thead><tr><th>Volume</th><th>Ensinamento</th><th>Progresso</th></tr></thead><tbody>`;
         positions.forEach(p => {
-          html += `<tr><td>${VOL_SHORT[p.volume] || p.volume}</td><td style="font-family:monospace; font-size:0.8rem;">${p.file.replace('.html.json','')}</td><td>${p.progress_pct}%</td></tr>`;
+          html += `<tr><td>${VOL_SHORT[p.volume] || p.volume}</td><td style="font-size:0.82rem;" title="${_escHtml(p.file || '')}">${_escHtml(getFileTitle(p.volume, p.file))}</td><td>${p.progress_pct}%</td></tr>`;
         });
         html += `</tbody></table>`;
       }
@@ -1478,17 +1673,18 @@
         const totalFiles = Object.values(categories).reduce((sum, files) => sum + files.length, 0);
         const blockedCount = isAllBlocked ? totalFiles : Object.values(categories).reduce((sum, files) => sum + files.filter(f => blockedFiles.has(f.file)).length, 0);
 
+        const volKeyEsc = _escHtml(vol.key);
         return `
-          <div class="vol-block" data-vol="${vol.key}">
+          <div class="vol-block" data-vol="${volKeyEsc}">
             <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')">
-              <input type="checkbox" ${isBlocked ? 'checked' : ''} onchange="toggleVolume('${vol.key}', this.checked)">
-              <span class="vol-title">${vol.name}</span>
+              <input type="checkbox" ${isBlocked ? 'checked' : ''} onchange="toggleVolume('${volKeyEsc}', this.checked)">
+              <span class="vol-title">${_escHtml(vol.name)}</span>
               <span style="font-size:0.75rem; color:var(--text-muted);">${isAllBlocked ? 'Todos bloqueados' : blockedCount + '/' + totalFiles + ' bloqueados'}</span>
             </div>
             <div class="vol-body">
               <div style="margin-bottom:12px;">
                 <label style="font-size:0.82rem; cursor:pointer; color:#e05252; font-weight:600;">
-                  <input type="checkbox" ${isAllBlocked ? 'checked' : ''} onchange="toggleAllFiles('${vol.key}', this.checked)">
+                  <input type="checkbox" ${isAllBlocked ? 'checked' : ''} onchange="toggleAllFiles('${volKeyEsc}', this.checked)">
                   Bloquear todo o volume
                 </label>
               </div>
@@ -1498,18 +1694,19 @@
                 return `
                   <div class="vol-block" style="margin-bottom:8px;">
                     <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')" style="padding:8px 12px; border-color:${sectionSomeBlocked || sectionAllBlocked ? 'rgba(224,82,82,0.3)' : 'var(--border)'}; background:${sectionSomeBlocked || sectionAllBlocked ? 'rgba(224,82,82,0.03)' : 'transparent'}">
-                      <input type="checkbox" ${sectionAllBlocked ? 'checked' : ''} ${sectionSomeBlocked && !sectionAllBlocked ? 'style="opacity:0.5"' : ''} onchange="toggleSection('${vol.key}', this.checked, this)">
-                      <span class="vol-title" style="font-size:0.85rem; color:${sectionSomeBlocked || sectionAllBlocked ? '#e05252' : ''}">${sectionName}</span>
+                      <input type="checkbox" ${sectionAllBlocked ? 'checked' : ''} ${sectionSomeBlocked && !sectionAllBlocked ? 'style="opacity:0.5"' : ''} onchange="toggleSection('${volKeyEsc}', this.checked, this)">
+                      <span class="vol-title" style="font-size:0.85rem; color:${sectionSomeBlocked || sectionAllBlocked ? '#e05252' : ''}">${_escHtml(sectionName)}</span>
                       <span style="font-size:0.7rem; color:var(--text-muted);">${files.length} itens</span>
                     </div>
                     <div class="vol-body" style="padding:8px 12px;">
-                      <div class="file-list" id="files-${vol.key}">
+                      <div class="file-list" id="files-${volKeyEsc}">
                         ${files.map(f => {
                           const isBlockedItem = blockedFiles.has(f.file) || isAllBlocked;
+                          const fileEsc = _escHtml(f.file);
                           return `
                           <div class="file-item">
-                            <input type="checkbox" id="file-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" ${isBlockedItem ? 'checked' : ''}>
-                            <label for="file-${vol.key}-${f.file}" style="${isBlockedItem ? 'text-decoration:line-through; opacity:0.6; color:#e05252;' : ''}">${f.num != null ? `<span class="file-num">${f.num}</span>` : ''}${f.title}</label>
+                            <input type="checkbox" id="file-${volKeyEsc}-${fileEsc}" value="${fileEsc}" data-vol="${volKeyEsc}" ${isBlockedItem ? 'checked' : ''}>
+                            <label for="file-${volKeyEsc}-${fileEsc}" style="${isBlockedItem ? 'text-decoration:line-through; opacity:0.6; color:#e05252;' : ''}">${f.num != null ? `<span class="file-num">${_escHtml(f.num)}</span>` : ''}${_escHtml(f.title)}</label>
                           </div>
                         `}).join('')}
                       </div>
@@ -1610,33 +1807,34 @@
         const categories = volumeCategories[vol.key] || {};
         const totalFiles = Object.values(categories).reduce((sum, files) => sum + files.length, 0);
 
+        const volKeyEsc = _escHtml(vol.key);
         return `
-          <div class="vol-block" data-vol="${vol.key}" data-context="default">
+          <div class="vol-block" data-vol="${volKeyEsc}" data-context="default">
             <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')">
-              <input type="checkbox" onchange="toggleDefaultVolume('${vol.key}', this.checked); saveDefaultPermState()">
-              <span class="vol-title">${vol.name}</span>
+              <input type="checkbox" onchange="toggleDefaultVolume('${volKeyEsc}', this.checked); saveDefaultPermState()">
+              <span class="vol-title">${_escHtml(vol.name)}</span>
               <span style="font-size:0.75rem; color:var(--text-muted);">0/${totalFiles}</span>
             </div>
             <div class="vol-body">
               <div style="margin-bottom:12px;">
                 <label style="font-size:0.82rem; cursor:pointer; color:#e05252; font-weight:600;">
-                  <input type="checkbox" onchange="toggleDefaultAllFiles('${vol.key}', this.checked); saveDefaultPermState()">
+                  <input type="checkbox" onchange="toggleDefaultAllFiles('${volKeyEsc}', this.checked); saveDefaultPermState()">
                   Bloquear todo o volume
                 </label>
               </div>
               ${Object.entries(categories).map(([sectionName, files]) => `
                 <div class="vol-block" style="margin-bottom:8px;">
                   <div class="vol-header" onclick="this.nextElementSibling.classList.toggle('open')" style="padding:8px 12px;">
-                    <input type="checkbox" onchange="toggleDefaultSection('${vol.key}', this.checked, this); saveDefaultPermState(); updateParentChecks(this)">
-                    <span class="vol-title" style="font-size:0.85rem;">${sectionName}</span>
+                    <input type="checkbox" onchange="toggleDefaultSection('${volKeyEsc}', this.checked, this); saveDefaultPermState(); updateParentChecks(this)">
+                    <span class="vol-title" style="font-size:0.85rem;">${_escHtml(sectionName)}</span>
                     <span style="font-size:0.7rem; color:var(--text-muted);">${files.length} itens</span>
                   </div>
                   <div class="vol-body" style="padding:8px 12px;">
                     <div class="file-list">
                       ${files.map(f => `
                         <div class="file-item">
-                          <input type="checkbox" id="dpf-${vol.key}-${f.file}" value="${f.file}" data-vol="${vol.key}" data-ctx="default" onchange="saveDefaultPermState(); updateParentChecks(this)">
-                          <label for="dpf-${vol.key}-${f.file}">${f.num != null ? `<span class="file-num">${f.num}</span>` : ''}${f.title}</label>
+                          <input type="checkbox" id="dpf-${volKeyEsc}-${_escHtml(f.file)}" value="${_escHtml(f.file)}" data-vol="${volKeyEsc}" data-ctx="default" onchange="saveDefaultPermState(); updateParentChecks(this)">
+                          <label for="dpf-${volKeyEsc}-${_escHtml(f.file)}">${f.num != null ? `<span class="file-num">${_escHtml(f.num)}</span>` : ''}${_escHtml(f.title)}</label>
                         </div>
                       `).join('')}
                     </div>
@@ -1666,9 +1864,12 @@
     };
 
     window.toggleDefaultSection = function(vol, checked, headerCheckbox) {
-      const volBlock = headerCheckbox.closest('.vol-block');
-      if (!volBlock) return;
-      volBlock.querySelectorAll('.file-list input[type=checkbox]').forEach(cb => { cb.checked = checked; });
+      const sectionBlock = headerCheckbox.closest('.vol-block');
+      if (!sectionBlock) return;
+      const fileCbs = sectionBlock.querySelectorAll('.file-list input[type=checkbox]');
+      fileCbs.forEach(cb => { cb.checked = checked; });
+      // Sync the volume-level checkbox so parent state stays consistent
+      if (fileCbs.length > 0) updateParentChecks(fileCbs[0]);
     };
 
     window.updateParentChecks = function(el) {
@@ -1740,31 +1941,49 @@
       progressWrap.style.display = 'block';
 
       let done = 0;
-      let errors = 0;
+      let successes = 0;
+      const failures = [];
 
       for (const user of nonAdminUsers) {
         const pct = Math.round((done / nonAdminUsers.length) * 100);
         progressBar.style.width = pct + '%';
         progressLabel.textContent = `Aplicando para ${user.display_name || user.email} (${done + 1}/${nonAdminUsers.length})...`;
 
+        // Snapshot existing permissions so we can rollback if insert fails
+        // (prevents leaving user with empty permissions after a partial failure)
+        let snapshot = null;
         try {
-          // Delete existing permissions for this user
+          const { data: prevRows, error: snapErr } = await supabase
+            .from('user_permissions')
+            .select('volume, files')
+            .eq('user_id', user.id);
+          if (snapErr) throw snapErr;
+          snapshot = prevRows || [];
+
           const { error: delErr } = await supabase
             .from('user_permissions')
             .delete()
             .eq('user_id', user.id);
-
           if (delErr) throw delErr;
 
-          // Insert default permissions
           if (defaultPerms.length > 0) {
             const rows = defaultPerms.map(p => ({ user_id: user.id, volume: p.volume, files: p.files }));
             const { error: insErr } = await supabase.from('user_permissions').insert(rows);
-            if (insErr) throw insErr;
+            if (insErr) {
+              // Rollback: restore previous permissions
+              if (snapshot.length > 0) {
+                const restoreRows = snapshot.map(r => ({ user_id: user.id, volume: r.volume, files: r.files }));
+                const { error: rbErr } = await supabase.from('user_permissions').insert(restoreRows);
+                if (rbErr) console.error(`[applyDefault] Rollback falhou para ${user.id}:`, rbErr.message);
+              }
+              throw insErr;
+            }
           }
+
+          successes++;
         } catch (e) {
-          console.error(`[applyDefault] Failed for ${user.id}:`, e.message);
-          errors++;
+          console.error(`[applyDefault] Falhou para ${user.id} (${user.email}):`, e.message);
+          failures.push({ user: user.display_name || user.email, reason: e.message });
         }
 
         done++;
@@ -1772,13 +1991,15 @@
 
       progressBar.style.width = '100%';
 
-      if (errors === 0) {
-        progressLabel.textContent = `✅ Concluído — ${done} usuário(s) atualizados.`;
-        msg.textContent = `Restrições aplicadas com sucesso para ${done} usuário(s)!`;
+      if (failures.length === 0) {
+        progressLabel.textContent = `✅ Concluído — ${successes} usuário(s) atualizados.`;
+        msg.textContent = `Restrições aplicadas com sucesso para ${successes} usuário(s)!`;
         msg.className = 'msg ok';
       } else {
-        progressLabel.textContent = `⚠ Concluído com ${errors} erro(s). Verifique o console.`;
-        msg.textContent = `Concluído com ${errors} erro(s) de ${done} usuários.`;
+        const preview = failures.slice(0, 3).map(f => `${f.user}: ${f.reason}`).join(' | ');
+        const more = failures.length > 3 ? ` (+${failures.length - 3} mais)` : '';
+        progressLabel.textContent = `⚠ ${successes} aplicado(s), ${failures.length} falha(s). Verifique o console.`;
+        msg.textContent = `${successes}/${done} aplicados. Falhas: ${preview}${more}`;
         msg.className = 'msg err';
       }
 
@@ -1797,7 +2018,13 @@
       msg.className = 'msg';
       msg.style.display = 'none';
 
-      await supabase.from('user_permissions').delete().eq('user_id', selectedUserId);
+      const { error: delErr } = await supabase.from('user_permissions').delete().eq('user_id', selectedUserId);
+      if (delErr) {
+        msg.textContent = 'Erro ao limpar permissões: ' + delErr.message;
+        msg.classList.add('err');
+        msg.style.display = 'block';
+        return;
+      }
 
       const perms = [];
       const volBlocks = document.querySelectorAll('#perm-volumes > .vol-block');
@@ -1890,8 +2117,9 @@
           body: JSON.stringify({ user_id: userId })
         });
 
-        const result = await resp.json();
-        if (!resp.ok && resp.status !== 207) throw new Error(result.error || 'Erro ao remover usuário');
+        let result = {};
+        try { result = await resp.json(); } catch {}
+        if (!resp.ok && resp.status !== 207) throw new Error(result.error || `Erro ${resp.status} ao remover usuário`);
         if (resp.status === 207) console.warn('Remoção parcial:', result.error);
       } catch (err) {
         alert('Erro ao remover usuário: ' + err.message);
@@ -2059,7 +2287,10 @@
       }
 
       const volLabel = v => VOL_SHORT[v] || v || '';
-      const fileLabel = f => f ? f.replace(/\.html\.json$/, '').replace(/\.html$/, '') : '';
+
+      if (!volumeCategories || Object.keys(volumeCategories).length === 0) {
+        try { await loadVolumeFiles(); } catch (e) { console.warn('loadVolumeFiles falhou:', e); }
+      }
 
       // Categoriza por recência
       const active = [], recent = [], idle = [];
@@ -2068,7 +2299,8 @@
         const e = {
           name: u.name || 'Sem nome',
           minutesAgo: Math.round(diff),
-          activity: u.lastVol ? `${volLabel(u.lastVol)} · ${fileLabel(u.lastFile)}` : null
+          activity: u.lastVol ? `${volLabel(u.lastVol)} · ${getFileTitle(u.lastVol, u.lastFile)}` : null,
+          activityTip: u.lastFile || ''
         };
         if (diff <= 10)      active.push({ ...e, status: 'active' });
         else if (diff <= 30) recent.push({ ...e, status: 'recent' });
@@ -2083,15 +2315,17 @@
         return;
       }
 
-      document.getElementById('online-list').innerHTML = all.map(u => `
-        <div class="online-user" style="flex-direction:column; align-items:flex-start; gap:2px; padding:8px 14px;">
+      document.getElementById('online-list').innerHTML = all.map(u => {
+        const tooltip = u.activity ? _escHtml(u.activity) : '';
+        return `
+        <div class="online-user" style="padding:8px 14px;"${tooltip ? ` title="${tooltip}"` : ''}>
           <div style="display:flex; align-items:center; gap:6px; width:100%;">
             <div class="online-user-dot ${u.status}"></div>
-            <span class="online-user-name">${u.name}</span>
+            <span class="online-user-name">${_escHtml(u.name)}</span>
             <span class="online-user-time" style="margin-left:auto;">${u.status === 'active' ? 'agora' : u.minutesAgo + ' min atrás'}</span>
           </div>
-          ${u.activity ? `<span style="font-size:0.7rem; color:var(--text-muted); padding-left:12px;">${u.activity}</span>` : ''}
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
 
 
@@ -2223,12 +2457,16 @@
 
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 15);
 
+      if (!volumeCategories || Object.keys(volumeCategories).length === 0) {
+        try { await loadVolumeFiles(); } catch (e) { console.warn('loadVolumeFiles falhou:', e); }
+      }
+
       document.getElementById('top-teachings').innerHTML = `
         <table class="data-table">
-          <thead><tr><th>#</th><th>Arquivo</th><th>Volume</th><th>Visualizações</th></tr></thead>
+          <thead><tr><th>#</th><th>Ensinamento</th><th>Volume</th><th>Visualizações</th></tr></thead>
           <tbody>${sorted.map((item, i) => {
             const [vol, file] = item[0].split('/');
-            return `<tr><td>${i + 1}</td><td style="font-family:monospace; font-size:0.8rem;">${file.replace('.html.json', '')}</td><td>${VOL_SHORT[vol] || vol}</td><td><strong>${item[1]}</strong></td></tr>`;
+            return `<tr><td>${i + 1}</td><td style="font-size:0.82rem;" title="${_escHtml(file)}">${_escHtml(getFileTitle(vol, file))}</td><td>${VOL_SHORT[vol] || vol}</td><td><strong>${item[1]}</strong></td></tr>`;
           }).join('')}</tbody>
         </table>`;
     }
@@ -2317,13 +2555,18 @@
       const nameMap = {};
       (profiles || []).forEach(p => nameMap[p.id] = p.display_name);
 
+      if (!volumeCategories || Object.keys(volumeCategories).length === 0) {
+        try { await loadVolumeFiles(); } catch (e) { console.warn('loadVolumeFiles falhou:', e); }
+      }
+
       document.getElementById('recent-activity').innerHTML = `
         <table class="data-table">
-          <thead><tr><th>Usuário</th><th>Ação</th><th>Volume</th><th>Arquivo</th><th>Data</th></tr></thead>
+          <thead><tr><th>Usuário</th><th>Ação</th><th>Volume</th><th>Ensinamento</th><th>Data</th></tr></thead>
           <tbody>${data.map(d => {
             const date = new Date(d.created_at);
             const dateStr = date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            return `<tr><td>${nameMap[d.user_id] || 'Desconhecido'}</td><td>${d.action}</td><td>${VOL_SHORT[d.volume] || d.volume}</td><td style="font-family:monospace; font-size:0.8rem;">${d.file.replace('.html.json', '')}</td><td style="font-size:0.8rem; color:var(--text-muted);">${dateStr}</td></tr>`;
+            const title = d.file ? getFileTitle(d.volume, d.file) : '—';
+            return `<tr><td>${_escHtml(nameMap[d.user_id] || 'Desconhecido')}</td><td>${_escHtml(d.action || '')}</td><td>${VOL_SHORT[d.volume] || d.volume}</td><td style="font-size:0.82rem;" title="${_escHtml(d.file || '')}">${_escHtml(title)}</td><td style="font-size:0.8rem; color:var(--text-muted);">${dateStr}</td></tr>`;
           }).join('')}</tbody>
         </table>`;
     }
@@ -2586,10 +2829,14 @@
         return;
       }
 
+      if (!volumeCategories || Object.keys(volumeCategories).length === 0) {
+        try { await loadVolumeFiles(); } catch (e) { console.warn('loadVolumeFiles falhou:', e); }
+      }
+
       const favCounts = {};
       favs.forEach(f => {
         const key = `${f.volume}/${f.file}`;
-        if (!favCounts[key]) favCounts[key] = { volume: f.volume, file: f.file, title: f.topic_title || f.file.replace('.html.json', ''), favs: 0, highlights: 0 };
+        if (!favCounts[key]) favCounts[key] = { volume: f.volume, file: f.file, title: getFileTitle(f.volume, f.file), favs: 0, highlights: 0 };
         favCounts[key].favs++;
       });
 
@@ -2598,7 +2845,7 @@
         if (favCounts[key]) {
           favCounts[key].highlights++;
         } else {
-          favCounts[key] = { volume: h.volume, file: h.file, title: h.file.replace('.html.json', ''), favs: 0, highlights: 1 };
+          favCounts[key] = { volume: h.volume, file: h.file, title: getFileTitle(h.volume, h.file), favs: 0, highlights: 1 };
         }
       });
 
@@ -2614,7 +2861,7 @@
             const countClass = total >= maxTotal * 0.5 ? 'high' : 'med';
             return `<tr>
               <td>${i + 1}</td>
-              <td style="font-size:0.82rem;">${item.title}</td>
+              <td style="font-size:0.82rem;" title="${_escHtml(item.file)}">${_escHtml(item.title)}</td>
               <td>${VOL_SHORT[item.volume] || item.volume}</td>
               <td><span class="fav-count ${countClass}">${item.favs}</span></td>
               <td><span class="fav-count ${countClass}">${item.highlights}</span></td>
