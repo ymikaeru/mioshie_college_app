@@ -338,7 +338,7 @@
         .related-teachings-bar, .breadcrumbs,
         .reader-nav, .reader-nav-footer,
         .content-protection-toast, .print-picker-modal,
-        .controls, #readerTopicSelect,
+        #readerTopicSelect,
         #backToIndexBtn, .skip-link,
         .topic-content.print-excluded {
           display: none !important;

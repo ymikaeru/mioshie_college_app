@@ -1,4 +1,14 @@
+@media (min-width: 1025px) {
+  #mobileNavLinkPrint {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1024px) {
+  .header-only-desktop {
+    display: none !important;
+  }
+
   .main {
     padding: 60px 32px 100px;
     padding: var(--nav-height, 60px) 32px 100px;

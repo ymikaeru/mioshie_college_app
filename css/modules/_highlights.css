@@ -148,8 +148,8 @@ mark.temp-selection {
   z-index: 5000;
   background: var(--bg-card, #fff);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-premium);
   padding: 8px;
   display: none;
   flex-direction: column;
@@ -446,7 +446,7 @@ mark.temp-selection {
   background: transparent;
   color: var(--text-muted);
   padding: 6px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius);
   min-width: 36px;
   height: 36px;
   display: flex;

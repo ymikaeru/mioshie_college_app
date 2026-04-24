@@ -91,7 +91,7 @@
   }
   .comparison-cell.ja {
     background: var(--accent-soft, rgba(0,0,0,0.04));
-    border-radius: 12px;
+    border-radius: var(--radius);
     padding: 12px 16px;
     margin-bottom: 6px;
     border-right: none;
