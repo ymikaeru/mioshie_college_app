@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap">
-    <link rel="stylesheet" href="../css/styles.min.css?v=17">
+    <link rel="stylesheet" href="../css/styles.min.css?v=32">
     <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 
     <!-- SEO -->
@@ -71,14 +71,6 @@
                 <option value="#section-7" data-pt="Método de Saúde Divino" data-ja="神示の健康法">Método de Saúde Divino</option>
                 <option value="#section-8" data-pt="Agricultura Natural" data-ja="自然農法">Agricultura Natural</option>
             </select>
-        </div>
-        <div class="controls">
-            <button class="btn-zen" onclick="openHistory()" title="Histórico de Navegação">🕒</button>
-            <button class="btn-zen" onclick="openFavorites()" title="Salvos">⭐</button>
-            <button class="btn-zen" id="searchBtnHeader" onclick="openSearch()" title="Buscar (Ctrl+K)">🔍</button>
-            <script>if (localStorage.getItem('mioshie_auth') === 'limited') { var btn = document.getElementById('searchBtnHeader'); if (btn) btn.style.display = 'none'; }</script>
-            <button class="btn-zen" id="lang-toggle" onclick="toggleLanguage()" title="Mudar idioma">日本語</button>
-            <button class="btn-zen" onclick="toggleTheme()" title="Themes & Settings">☯</button>
         </div>
     </header>
     <main class="main" id="main-content">

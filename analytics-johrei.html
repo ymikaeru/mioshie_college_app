@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Analytics — Johrei Guia Prático</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/styles.min.css?v=32">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 28px 120px; }
+    h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 4px; }
+    .sub { font-size: .85rem; color: var(--text-muted); margin-bottom: 28px; }
+
+    .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 24px; }
+    .toolbar select, .toolbar button {
+      background: var(--surface); color: var(--text); border: 1px solid var(--border);
+      padding: 8px 12px; border-radius: 8px; font-size: .85rem; cursor: pointer;
+    }
+    .toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+    .card { padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    .card .v { font-size: 1.7rem; font-weight: 700; color: var(--accent); line-height: 1; }
+    .card .s { font-size: .65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .14em; margin-top: 6px; }
+    .card .u { font-size: .75rem; color: var(--text-muted); margin-top: 4px; }
+
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+    .chart-wrap h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: var(--text-muted); margin: 0 0 14px; font-weight: 600; }
+    canvas { max-width: 100%; height: 280px !important; }
+
+    .tables { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .tables { grid-template-columns: 1fr; } }
+    .tbl-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .tbl-card h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .14em; color: var(--text-muted); margin: 0 0 12px; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th { text-align: left; font-size: .65rem; text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); padding: 6px 0; border-bottom: 1px solid var(--border); font-weight: 500; }
+    td { padding: 8px 0; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    td.num { text-align: right; color: var(--accent); font-weight: 600; }
+    td.ellipsis { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .loading, .err, .empty { padding: 40px 0; text-align: center; color: var(--text-muted); font-size: .9rem; }
+    .err { color: #e05252; }
+
+    .back-link { display: inline-block; font-size: .8rem; color: var(--text-muted); text-decoration: none; margin-bottom: 18px; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a href="admin-supabase.html" class="back-link">← Voltar ao admin</a>
+    <h1>Analytics — Johrei Guia Prático</h1>
+    <div class="sub" id="genAt">Carregando…</div>
+
+    <div class="toolbar">
+      <label style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.12em;">Período</label>
+      <select id="rangeSel">
+        <option value="7">7 dias</option>
+        <option value="30" selected>30 dias</option>
+        <option value="90">90 dias</option>
+        <option value="365">1 ano</option>
+      </select>
+      <button id="reloadBtn">Atualizar</button>
+    </div>
+
+    <div id="dashboard">
+      <div class="loading">Carregando…</div>
+    </div>
+  </div>
+
+  <script src="js/theme.js?v=1"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm",
+      "chart.js/auto": "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/+esm"
+    }
+  }
+  </script>
+  <script type="module">
+    import { supabase } from './js/supabase-config.js';
+    import Chart from 'chart.js/auto';
+
+    const dashboardEl = document.getElementById('dashboard');
+    const rangeSel = document.getElementById('rangeSel');
+    const reloadBtn = document.getElementById('reloadBtn');
+    const genAtEl = document.getElementById('genAt');
+    let chart = null;
+
+    async function requireAdmin() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        dashboardEl.innerHTML = '<div class="err">Faça login como admin em <a href="login.html">login.html</a> para ver esta página.</div>';
+        genAtEl.textContent = '';
+        return false;
+      }
+      return true;
+    }
+
+    async function loadAnalytics() {
+      dashboardEl.innerHTML = '<div class="loading">Carregando dados…</div>';
+      const days = parseInt(rangeSel.value, 10) || 30;
+      const { data, error } = await supabase.rpc('admin_get_johrei_analytics', { days_back: days });
+      if (error) {
+        const msg = /Not authorized|42501/i.test(error.message)
+          ? 'Sua conta não tem permissão de admin.'
+          : `Erro: ${error.message}`;
+        dashboardEl.innerHTML = `<div class="err">${msg}</div>`;
+        return;
+      }
+      render(data);
+    }
+
+    function render(d) {
+      const t = d.totals || {};
+      const daily = d.daily || [];
+      const refs = d.top_referrers || [];
+      const paths = d.top_paths || [];
+
+      const hasAny = (t.all_time_visits || 0) > 0;
+      if (!hasAny) {
+        dashboardEl.innerHTML = '<div class="empty">Ainda não há visitas registradas. Abra o site do guia em outra aba pra gerar a primeira visita.</div>';
+        genAtEl.textContent = `Gerado em ${new Date(d.generated_at).toLocaleString('pt-BR')}`;
+        return;
+      }
+
+      const html = `
+        <div class="cards">
+          ${card(t.today_visits,  'Hoje',         t.today_uniques)}
+          ${card(t.week_visits,   '7 dias',       t.week_uniques)}
+          ${card(t.period_visits, `${d.days_back} dias`, t.period_uniques)}
+          ${card(t.all_time_visits, 'Total',      t.all_time_uniques)}
+        </div>
+
+        <div class="chart-wrap">
+          <h2>Visitas por dia (últimos ${d.days_back} dias)</h2>
+          <canvas id="chart"></canvas>
+        </div>
+
+        <div class="tables">
+          <div class="tbl-card">
+            <h2>Top referrers</h2>
+            ${renderTable(refs, 'referrer', 'visits', '(sem dados)')}
+          </div>
+          <div class="tbl-card">
+            <h2>Top páginas</h2>
+            ${renderTable(paths, 'path', 'visits', '(sem dados)')}
+          </div>
+        </div>
+      `;
+      dashboardEl.innerHTML = html;
+      genAtEl.textContent = `Atualizado em ${new Date(d.generated_at).toLocaleString('pt-BR')}`;
+      drawChart(daily);
+    }
+
+    function card(v, label, uniques) {
+      return `<div class="card">
+        <div class="v">${(v ?? 0).toLocaleString('pt-BR')}</div>
+        <div class="s">${label}</div>
+        ${uniques != null ? `<div class="u">${uniques.toLocaleString('pt-BR')} únicos</div>` : ''}
+      </div>`;
+    }
+
+    function renderTable(rows, keyCol, valCol, empty) {
+      if (!rows.length) return `<div class="empty" style="padding:20px 0;">${empty}</div>`;
+      const trs = rows.map(r => {
+        const k = String(r[keyCol] ?? '').replace(/[<>&"']/g, s => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;','\'':'&#39;'})[s]);
+        return `<tr><td class="ellipsis">${k}</td><td class="num">${(r[valCol] ?? 0).toLocaleString('pt-BR')}</td></tr>`;
+      }).join('');
+      return `<table><thead><tr><th>${keyCol === 'path' ? 'Caminho' : 'Origem'}</th><th style="text-align:right;">Visitas</th></tr></thead><tbody>${trs}</tbody></table>`;
+    }
+
+    function drawChart(daily) {
+      const ctx = document.getElementById('chart');
+      if (!ctx) return;
+      if (chart) chart.destroy();
+      const labels = daily.map(r => r.day.slice(5)); // "MM-DD"
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Visitas',
+              data: daily.map(r => r.visits),
+              borderColor: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#b8860b',
+              backgroundColor: 'rgba(184,134,11,0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 2
+            },
+            {
+              label: 'Únicos',
+              data: daily.map(r => r.uniques),
+              borderColor: '#6b7280',
+              backgroundColor: 'transparent',
+              borderDash: [4, 4],
+              tension: 0.3,
+              pointRadius: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } },
+            y: { beginAtZero: true, ticks: { font: { size: 10 }, precision: 0 } }
+          }
+        }
+      });
+    }
+
+    rangeSel.addEventListener('change', loadAnalytics);
+    reloadBtn.addEventListener('click', loadAnalytics);
+
+    (async () => {
+      if (await requireAdmin()) await loadAnalytics();
+    })();
+  </script>
+</body>
+</html>

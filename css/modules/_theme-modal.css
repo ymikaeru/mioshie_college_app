@@ -24,7 +24,7 @@
   width: 100%;
   max-width: 400px;
   max-height: 60vh;
-  border-radius: 24px 24px 0 0;
+  border-radius: var(--radius) var(--radius) 0 0;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1);
   padding: 24px 0 0;
   transform: translateY(100%);
@@ -123,7 +123,7 @@
   align-items: center;
   justify-content: center;
   padding: 16px 8px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s;
@@ -199,7 +199,7 @@
 
 .theme-sliders-group {
   background: var(--bg-color);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 0 16px;
   margin-bottom: 24px;
   overflow: hidden;
@@ -257,7 +257,7 @@
   justify-content: space-between;
   background: var(--bg-color);
   padding: 12px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   margin-bottom: 8px;
 }
 
