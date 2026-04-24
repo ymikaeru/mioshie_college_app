@@ -1,10 +1,23 @@
 #readerContainer {
   max-width: var(--max-width-content);
+  width: 100%;
   margin: 0 auto;
   overflow-x: hidden;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
+
+.reader-body .main {
+  padding-bottom: 0;
+  min-height: 100vh;
+}
+
+.reader-body #readerContainer {
+  min-height: calc(100vh - var(--nav-height));
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 
 #readerContainer.comparison-active {
   max-width: 1400px;

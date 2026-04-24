@@ -186,13 +186,18 @@ function _resolveAccessibleVolumes() {
 function _setRandomLoading(btn) {
   if (!btn || btn.disabled) return { restore: () => {} };
   const origHtml = btn.innerHTML;
-  const origWidth = btn.offsetWidth;
-  const lang = localStorage.getItem('site_lang') || 'pt';
-  const txt = lang === 'ja' ? '読み込み中...' : 'Carregando...';
+  const isIconOnly = btn.classList.contains('vol-random-btn');
   btn.disabled = true;
   btn.setAttribute('aria-busy', 'true');
-  btn.style.minWidth = origWidth + 'px';
-  btn.innerHTML = `<span class="search-spinner" aria-hidden="true"></span><span>${txt}</span>`;
+  if (isIconOnly) {
+    btn.innerHTML = `<span class="search-spinner search-spinner--icon" aria-hidden="true"></span>`;
+  } else {
+    const origWidth = btn.offsetWidth;
+    const lang = localStorage.getItem('site_lang') || 'pt';
+    const txt = lang === 'ja' ? '読み込み中...' : 'Carregando...';
+    btn.style.minWidth = origWidth + 'px';
+    btn.innerHTML = `<span class="search-spinner" aria-hidden="true"></span><span>${txt}</span>`;
+  }
   return {
     restore: () => {
       btn.disabled = false;

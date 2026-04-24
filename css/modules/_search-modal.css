@@ -356,6 +356,12 @@
   flex-shrink: 0;
 }
 
+.search-spinner--icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 0;
+}
+
 .search-header {
   position: relative;
 }

@@ -21,7 +21,24 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-premium);
   border: 1px solid var(--border);
-  animation: fadeIn 0.8s var(--ease);
+  animation: fadeIn 0.5s var(--ease) both;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-pane::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.09) 50%,
+    transparent 80%
+  );
+  animation: shimmer-once 0.7s ease-out forwards;
+  pointer-events: none;
+  z-index: 0;
 }
 
 #login-overlay {
