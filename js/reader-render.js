@@ -243,6 +243,7 @@ function renderReader(volId, filename, json, allFiles, searchQuery, searchTopicT
 
     const breadcrumbsHtml = bcParts.join(' <span>/</span> ');
 
+    container.style.opacity = '0';
     container.innerHTML = `
         <nav class="breadcrumbs">
             ${breadcrumbsHtml}
@@ -252,6 +253,10 @@ function renderReader(volId, filename, json, allFiles, searchQuery, searchTopicT
             ${contentHtml}
             ${navFooter}
         </div>`;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        container.style.transition = 'opacity 0.3s ease';
+        container.style.opacity = '1';
+    }));
 
     // Mobile: hide all topics except the searched one
     if (isMobile && topicParamForRender) {

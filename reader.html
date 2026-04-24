@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&display=swap">
-  <link href="css/styles.min.css?v=32" rel="stylesheet" />
+  <link href="css/styles.min.css?v=40" rel="stylesheet" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
   <!-- SEO -->
@@ -23,7 +23,7 @@
 
 </head>
 
-<body>
+<body class="reader-body">
   <a href="#main-content" class="skip-link">Ir para o conteúdo</a>
   <div id="page-gate"
     style="position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;z-index:4999;background:#f5f3ee;background:var(--bg-color,#f5f3ee)">
@@ -39,10 +39,7 @@
 
   <header class="header">
     <a href="index.html" class="header__logo">
-      <div class="logo-circle">
-        <div class="logo-dot"></div>
-      </div>
-      Caminho da Felicidade
+      <svg width="28" height="28" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-label="Emblema da Comunidade Messiânica Universal"><circle cx="100" cy="100" r="98" fill="#b8860b"/><circle cx="100" cy="100" r="92" fill="#fff"/><rect x="80" y="8" width="40" height="184" fill="#006400"/><rect x="8" y="80" width="184" height="40" fill="#006400"/><circle cx="100" cy="100" r="42" fill="#cc0000"/><circle cx="100" cy="100" r="28" fill="#b8860b"/></svg>
     </a>
     <a id="backToIndexBtn" class="btn-zen"
       style="display:none; text-decoration:none; margin-right: auto; margin-left:16px;">
@@ -87,11 +84,8 @@
     <!-- Disciples-only sidebar: hidden until body.disciples-active is set by disciples-reader.js -->
     <aside class="disciples-sidebar-panel" id="readerSidebar" aria-label="Navegação do livro" style="display:none"></aside>
     <div class="glass-pane" id="readerContainer">
-      <div style="text-align:center; color:var(--text-muted)">
-        Preparando leitura...
-        <div class="loading-progress" id="loadingProgress" style="display: block;">
-          <div class="loading-progress-bar" id="loadingProgressBar"></div>
-        </div>
+      <div class="loading-progress" id="loadingProgress" style="display:block;">
+        <div class="loading-progress-bar" id="loadingProgressBar"></div>
       </div>
     </div>
   </main>

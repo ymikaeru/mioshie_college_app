@@ -24,7 +24,7 @@ function setLanguage(lang, triggerRender = true) {
   }
 
   const headerLogo = document.querySelector('.header__logo');
-  if (headerLogo) {
+  if (headerLogo && !headerLogo.querySelector('svg')) {
     const ptTitle = 'Caminho da Felicidade';
     const jaTitle = '御教えカレッジ';
     const logoCircle = headerLogo.querySelector('.logo-circle');
