@@ -37,24 +37,21 @@
       .replace(/'/g, '&#39;');
   }
   function setBackButton(target) {
-    const btn = document.getElementById('backToIndexBtn');
-    if (!btn) return;
     const lang = localStorage.getItem('site_lang') || 'pt';
     const isPt = lang !== 'ja';
-    if (target === 'books') {
-      btn.href = 'reader.html?pub=disciples';
+    const href = target === 'books' ? 'reader.html?pub=disciples' : 'index.html';
+    const labelPt = target === 'books' ? 'Obras' : 'Início';
+    const labelJa = target === 'books' ? '作品一覧' : 'ホーム';
+
+    const btn = document.getElementById('backToIndexBtn');
+    if (btn) {
+      btn.href = href;
       const pt = btn.querySelector('.lang-pt');
       const ja = btn.querySelector('.lang-ja');
-      if (pt) pt.textContent = 'Voltar aos Livros';
-      if (ja) ja.textContent = '本一覧に戻る';
-    } else {
-      btn.href = 'index.html';
-      const pt = btn.querySelector('.lang-pt');
-      const ja = btn.querySelector('.lang-ja');
-      if (pt) pt.textContent = 'Voltar ao Início';
-      if (ja) ja.textContent = 'ホームに戻る';
+      if (pt) pt.textContent = target === 'books' ? 'Obras' : 'Início';
+      if (ja) ja.textContent = target === 'books' ? '作品一覧' : 'ホーム';
+      btn.style.display = 'flex';
     }
-    btn.style.display = 'flex';
   }
 
   function renderMd(md) {
@@ -515,6 +512,72 @@
     } catch (e) { console.warn('[disciples] restore failed', e); }
   }
 
+  // ── Mobile sidebar drawer toggle ──
+  window._disciplesToggleSidebar = function () {
+    const body = document.body;
+    const btn = document.getElementById('discSidebarToggle');
+    if (body.classList.contains('disciples-sidebar-open')) {
+      body.classList.remove('disciples-sidebar-open');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    } else {
+      body.classList.add('disciples-sidebar-open');
+      if (btn) btn.setAttribute('aria-expanded', 'true');
+    }
+  };
+
+  window._disciplesCloseSidebar = function () {
+    document.body.classList.remove('disciples-sidebar-open');
+    const btn = document.getElementById('discSidebarToggle');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  };
+
+  function initMobileSidebarToggle() {
+    if (document.getElementById('discSidebarToggle')) return;
+
+    // Aguardar header__actions (injetado por nav.js no DOMContentLoaded)
+    const headerActions = document.querySelector('.header__actions');
+    if (!headerActions) {
+      requestAnimationFrame(initMobileSidebarToggle);
+      return;
+    }
+
+    const lang = localStorage.getItem('site_lang') || 'pt';
+    const isPt = lang !== 'ja';
+
+    // Botão Índice no header (substitui hamburger — drawer entra pela direita)
+    const btn = document.createElement('button');
+    btn.id = 'discSidebarToggle';
+    btn.className = 'disciples-sidebar-toggle';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', 'readerSidebar');
+    btn.setAttribute('onclick', '_disciplesToggleSidebar()');
+    btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>${isPt ? 'Índice' : '目次'}`;
+    headerActions.appendChild(btn);
+
+    // Backdrop
+    const backdrop = document.getElementById('disciplesBackdrop');
+    if (backdrop && !backdrop._discListener) {
+      backdrop._discListener = true;
+      backdrop.setAttribute('onclick', '_disciplesCloseSidebar()');
+    }
+
+    if (!window._discEscListener) {
+      window._discEscListener = true;
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') window._disciplesCloseSidebar(); });
+    }
+
+    // Fechar ao selecionar item do índice
+    const sidebar = document.getElementById('readerSidebar');
+    if (sidebar && !sidebar._discCloseListener) {
+      sidebar._discCloseListener = true;
+      sidebar.addEventListener('click', (e) => {
+        if (e.target.closest('.disciples-sb-leaf, .disciples-sb-book-link')) {
+          setTimeout(() => window._disciplesCloseSidebar(), 220);
+        }
+      });
+    }
+  }
+
   // ── Entry point ──
   async function initDisciples() {
     const bookId = urlParams.get('book');
@@ -527,6 +590,7 @@
       }
       if (!bookId) {
         renderDisciplesOverview();
+        initMobileSidebarToggle();
         return;
       }
       const entry = _disciplesIndex.books.find(b => b.id === bookId);
@@ -542,10 +606,12 @@
       book.titleJa = book.titleJa || entry.titleJa;
       book.description = book.description || entry.description;
       renderDisciplesBook(book);
+      initMobileSidebarToggle();
     } catch (err) {
       console.error('[disciples] init failed:', err);
       container.innerHTML = `<div class="error" style="padding:2rem;text-align:center">Erro ao carregar Publicações de Discípulos.${err?.message ? `<br><small style="opacity:0.6">${esc(err.message)}</small>` : ''}</div>`;
       setBackButton('home');
+      initMobileSidebarToggle();
     }
   }
 
