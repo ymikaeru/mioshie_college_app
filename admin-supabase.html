@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Admin — Caminho da Felicidade</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="css/styles.min.css?v=45">
+  <link rel="stylesheet" href="css/styles.min.css?v=46">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <style>
     .admin-wrap { max-width: 1400px; margin: 0 auto; padding: 40px 32px 120px; }
@@ -5476,6 +5476,39 @@
 
       let grandTotal = 0;
 
+      const _idxStripHtml = (html) => {
+        if (!html) return '';
+        return String(html)
+          .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+          .replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+      };
+
+      const _QUOTED_RE = /[“”""「]([^“”""」]{5,150})[“”""」]/;
+      const _BOLD_RE = /<(?:b|strong)(?:\s[^>]*)?>(?:<font[^>]*)?>?([\s\S]+?)<\/(?:b|strong)>/i;
+
+      const _idxResolveTitle = (topic) => {
+        const br = (topic.topic_title_br || '').trim();
+        if (br) return br;
+        const raw = (topic.title_ptbr || topic.title_pt || topic.title || '').trim();
+        if (raw) {
+          const mq = raw.match(_QUOTED_RE);
+          if (mq && mq[1].length < 150) return mq[1].trim();
+        }
+        const content = topic.content_ptbr || topic.content_pt || '';
+        if (content) {
+          const mb = content.slice(0, 400).match(_BOLD_RE);
+          if (mb) {
+            const t = mb[1].replace(/<[^>]+>/g, '').trim();
+            if (t && t.length > 3 && t.length < 150) return t;
+          }
+        }
+        return raw;
+      };
+
       try {
         for (const vol of scopes) {
           progress.textContent = `${vol}: listando arquivos…`;
@@ -5490,16 +5523,23 @@
               try {
                 const json = await _frDownloadJson(`${vol}/${fname}`);
                 if (!Array.isArray(json.themes)) return;
-                const fKey = fname.replace(/\.json$/, ''); // e.g. zyobun.html
+                const fKey = fname.replace(/\.json$/, '');
                 let topicIdx = 0;
                 json.themes.forEach(theme => {
                   if (!Array.isArray(theme.topics)) return;
                   theme.topics.forEach(topic => {
-                    const entry = { v: vol, f: fKey, i: topicIdx++ };
-                    if (topic.title_ptbr) entry.t = topic.title_ptbr;
-                    if (topic.content_ptbr) entry.c = topic.content_ptbr;
-                    if (topic.title) entry.tj = topic.title;
-                    if (topic.content) entry.cj = topic.content;
+                    const titlePt = _idxResolveTitle(topic);
+                    const cleanPt = _idxStripHtml(topic.content_ptbr || topic.content_pt || topic.content || '');
+                    if (!cleanPt) { topicIdx++; return; }
+
+                    const entry = { v: vol, f: fKey, i: topicIdx++, t: titlePt, c: cleanPt };
+
+                    const titleJa = (topic.topic_title_ja || topic.title_ja || topic.title || '').trim();
+                    if (titleJa && titleJa !== titlePt) entry.tj = titleJa;
+
+                    const cleanJa = _idxStripHtml(topic.content_ja || topic.content || '');
+                    if (cleanJa && cleanJa !== cleanPt) entry.cj = cleanJa;
+
                     indexEntries.push(entry);
                   });
                 });

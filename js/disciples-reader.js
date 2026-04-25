@@ -16,8 +16,15 @@
   window._disciplesMode = isDisciplesMode;
   if (!isDisciplesMode) return;
   // Mark body so CSS can apply disciples-mode layout (sidebar, padding)
-  if (document.body) document.body.classList.add('disciples-active');
-  else document.addEventListener('DOMContentLoaded', () => document.body.classList.add('disciples-active'));
+  const _initialCollapsed = (() => {
+    try { return localStorage.getItem('disciples_sidebar_collapsed') === '1'; } catch (_) { return false; }
+  })();
+  const _markBody = () => {
+    document.body.classList.add('disciples-active');
+    if (_initialCollapsed) document.body.classList.add('disciples-sidebar-collapsed');
+  };
+  if (document.body) _markBody();
+  else document.addEventListener('DOMContentLoaded', _markBody);
 
   // ── State ──
   let _disciplesIndex = null;
@@ -306,6 +313,33 @@
   }
 
   // ── Sidebar rendering ──
+  function _collapseToggleHtml(isPt) {
+    const label = isPt ? 'Recolher índice' : '目次を折りたたむ';
+    return `<button type="button" class="disciples-sb-collapse-toggle" onclick="_disciplesToggleCollapse()" aria-label="${label}" title="${label}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>`;
+  }
+
+  function _railHtmlForBookList(isPt) {
+    if (!_disciplesIndex) return '';
+    let html = '';
+    for (let i = 0; i < _disciplesIndex.books.length; i++) {
+      const b = _disciplesIndex.books[i];
+      const url = `reader.html?pub=disciples&book=${encodeURIComponent(b.id)}`;
+      html += `<a class="disciples-sb-rail-item" href="${url}" title="${esc(b.title)}" aria-label="${esc(b.title)}"><span>${i + 1}</span></a>`;
+    }
+    return html;
+  }
+
+  function _railHtmlForChapters() {
+    if (!_flatChapters.length) return '';
+    let html = '';
+    for (let i = 0; i < _flatChapters.length; i++) {
+      const ch = _flatChapters[i];
+      const title = (ch.title || `#${i + 1}`).replace(/\s+/g, ' ').trim();
+      html += `<button type="button" class="disciples-sb-rail-item" data-chapter-idx="${i}" title="${esc(title)}" aria-label="${esc(title)}"><span>${i + 1}</span></button>`;
+    }
+    return html;
+  }
+
   function renderDisciplesSidebar(bookId) {
     const sidebar = document.getElementById('readerSidebar');
     if (!sidebar) return;
@@ -325,7 +359,8 @@
         const url = `reader.html?pub=disciples&book=${encodeURIComponent(book.id)}`;
         navHtml += `<a class="disciples-sb-book-link" href="${url}"><span class="disciples-sb-book-title">${esc(book.title)}</span></a>`;
       }
-      sidebar.innerHTML = `<div class="disciples-sidebar"><div class="disciples-sb-fixed-header" style="padding:0.75rem 1rem"><div style="font-size:0.78rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent)">${isPt ? 'Publicações de Discípulos' : '弟子の著作'}</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">${_disciplesIndex.books.length} ${isPt ? 'obras' : '作品'}</div></div><div class="disciples-sb-scrollable">${navHtml}</div></div>`;
+      sidebar.innerHTML = `<div class="disciples-sidebar"><div class="disciples-sb-fixed-header"><div class="disciples-sb-header-row"><div class="disciples-sb-header-titles"><div style="font-size:0.78rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent)">${isPt ? 'Publicações de Discípulos' : '弟子の著作'}</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px">${_disciplesIndex.books.length} ${isPt ? 'obras' : '作品'}</div></div>${_collapseToggleHtml(isPt)}</div></div><div class="disciples-sb-scrollable">${navHtml}</div><div class="disciples-sb-rail">${_railHtmlForBookList(isPt)}</div></div>`;
+      requestAnimationFrame(() => attachSidebarBehaviors(sidebar));
       return;
     }
 
@@ -348,7 +383,7 @@
       sectionsHtml = aboutHtml + `<div class="disciples-sb-tree">${treeHtml}</div>`;
     }
 
-    sidebar.innerHTML = `<div class="disciples-sidebar"><div class="disciples-sb-fixed-header"><div style="padding:0.75rem 1rem"><div style="font-size:0.95rem;font-weight:600;color:var(--text-main);line-height:1.25">${_currentDisciplesBook ? esc(_currentDisciplesBook.title) : (isPt ? 'Livros' : '書籍')}</div>${_currentDisciplesBook?.titleJa ? `<div style="font-family:'Noto Serif JP',serif;font-size:0.78rem;color:var(--text-muted);margin-top:2px">${esc(_currentDisciplesBook.titleJa)}</div>` : ''}</div><a href="reader.html?pub=disciples" class="disciples-back-link" style="padding:0.4rem 1rem;display:flex"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>${isPt ? 'Todas as obras' : '作品一覧'}</a></div><div class="disciples-sb-scrollable">${sectionsHtml}</div></div>`;
+    sidebar.innerHTML = `<div class="disciples-sidebar"><div class="disciples-sb-fixed-header"><div class="disciples-sb-header-row"><div class="disciples-sb-header-titles"><div style="font-size:0.95rem;font-weight:600;color:var(--text-main);line-height:1.25">${_currentDisciplesBook ? esc(_currentDisciplesBook.title) : (isPt ? 'Livros' : '書籍')}</div>${_currentDisciplesBook?.titleJa ? `<div style="font-family:'Noto Serif JP',serif;font-size:0.78rem;color:var(--text-muted);margin-top:2px">${esc(_currentDisciplesBook.titleJa)}</div>` : ''}</div>${_collapseToggleHtml(isPt)}</div><a href="reader.html?pub=disciples" class="disciples-back-link" style="padding:0.4rem 1rem;display:flex"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>${isPt ? 'Todas as obras' : '作品一覧'}</a></div><div class="disciples-sb-scrollable">${sectionsHtml}</div><div class="disciples-sb-rail">${_railHtmlForChapters()}</div></div>`;
 
     requestAnimationFrame(() => attachSidebarBehaviors(sidebar));
   }
@@ -390,10 +425,18 @@
       link.addEventListener('click', (e) => { e.preventDefault(); const id = (link.getAttribute('href') || '').replace('#', ''); if (id) scrollTarget(id); });
     });
 
+    // Rail navigation (collapsed mode)
+    sidebar.querySelectorAll('.disciples-sb-rail-item[data-chapter-idx]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const idx = parseInt(btn.dataset.chapterIdx, 10);
+        if (Number.isFinite(idx)) navigateToChapter(idx);
+      });
+    });
+
     // Scroll spy
     const allLinks = Array.from(sidebar.querySelectorAll('.disciples-sb-leaf, [data-scroll]'));
     const contentSections = Array.from(document.querySelectorAll('.disciples-section[id], .disciples-part-divider[id]'));
-    const scrollCont = sidebar.querySelector('.disciples-sb-scrollable') || sidebar;
     if (allLinks.length && contentSections.length) {
       let ticking = false;
       const setActive = (id) => {
@@ -405,12 +448,18 @@
           const is = linkId === id;
           if (was !== is) {
             link.classList.toggle('active', is);
-            if (is && !ticking) {
-              ticking = true;
-              requestAnimationFrame(() => {
-                scrollCont.scrollTop += link.getBoundingClientRect().top - scrollCont.getBoundingClientRect().top - 60;
-                ticking = false;
-              });
+            if (is) {
+              // Auto-expand parent <details> so the active link is reachable visually
+              let parent = link.closest('details');
+              while (parent) { parent.open = true; parent = parent.parentElement?.closest('details'); }
+              if (!ticking) {
+                ticking = true;
+                requestAnimationFrame(() => {
+                  try { link.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+                  catch (_) { /* older browsers */ }
+                  ticking = false;
+                });
+              }
             }
           }
         });
@@ -419,7 +468,7 @@
       const obs = new IntersectionObserver((entries) => {
         const visible = entries.filter(e => e.isIntersecting);
         if (visible.length) setActive(visible[0].target.id);
-      }, { rootMargin: '-8% 0px -65% 0px', threshold: 0 });
+      }, { rootMargin: '-12% 0px -55% 0px', threshold: 0 });
       contentSections.forEach(s => obs.observe(s));
     }
 
@@ -461,8 +510,15 @@
       activeLink.classList.add('active');
       let parent = activeLink.closest('details');
       while (parent) { parent.open = true; parent = parent.parentElement?.closest('details'); }
-      const scrollCont = sidebar.querySelector('.disciples-sb-scrollable');
-      if (scrollCont) scrollCont.scrollTop += activeLink.getBoundingClientRect().top - scrollCont.getBoundingClientRect().top - 60;
+      try { activeLink.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+    }
+
+    // Rail (collapsed mode)
+    sidebar.querySelectorAll('.disciples-sb-rail-item.active').forEach(el => el.classList.remove('active'));
+    const railItem = sidebar.querySelector(`.disciples-sb-rail-item[data-chapter-idx="${_currentChapterIndex}"]`);
+    if (railItem) {
+      railItem.classList.add('active');
+      try { railItem.scrollIntoView({ block: 'nearest' }); } catch (_) {}
     }
   }
 
@@ -511,6 +567,15 @@
       }
     } catch (e) { console.warn('[disciples] restore failed', e); }
   }
+
+  // ── Desktop sidebar collapse toggle ──
+  window._disciplesToggleCollapse = function () {
+    const isCollapsed = document.body.classList.toggle('disciples-sidebar-collapsed');
+    try {
+      if (isCollapsed) localStorage.setItem('disciples_sidebar_collapsed', '1');
+      else localStorage.removeItem('disciples_sidebar_collapsed');
+    } catch (_) { /* storage unavailable */ }
+  };
 
   // ── Mobile sidebar drawer toggle ──
   window._disciplesToggleSidebar = function () {
