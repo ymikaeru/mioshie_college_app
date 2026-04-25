@@ -54,22 +54,26 @@
     margin-right: 0 !important;
   }
 
-  .header__logo {
-    position: static;
-    left: auto;
-    transform: none;
-  }
-
-  .header__logo:hover {
-    transform: scale(1.08);
-  }
-
   .header > .btn-zen {
     display: none !important;
   }
 
   .header__site-name {
     display: none !important;
+  }
+
+  .mobile-search-btn {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  #mobileHighlightBtn {
+    position: absolute;
+    left: 56px;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   .topic-list {
